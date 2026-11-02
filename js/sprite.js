@@ -365,12 +365,12 @@ function renderSprite(def, pose, o = {}) {
 const css2 = (h, k) => { const [r, g, b] = rgbOf(h); return '#' + [r, g, b].map(v => Math.min(255, Math.round(v * k)).toString(16).padStart(2, '0')).join(''); };
 
 // X/Y — точка между ступнями в пикселях экрана (уже умноженных на масштаб)
+// бойцы снова в классическом пикселе (~64 px ростом): рисуем старой кистью и увеличиваем в PPU раз
 function drawFighterHD(ctx, def, pose, X, Y, face, o = {}) {
-  const c = renderSprite(def, pose, o);
   ctx.save();
   ctx.imageSmoothingEnabled = false;
   ctx.translate(Math.round(X), Math.round(Y));
-  ctx.scale(face, 1);
-  ctx.drawImage(c, -SPR.OX, -SPR.OY);
+  ctx.scale(PPU, PPU);
+  drawFighter(ctx, def, pose, 0, 0, face, { flash: o.flash, hat: o.hat, rot: o.rot, mic: o.mic });
   ctx.restore();
 }

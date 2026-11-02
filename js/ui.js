@@ -127,8 +127,7 @@ function buildGrid() {
     c.width = 90; c.height = 90;
     const x = c.getContext('2d'); x.imageSmoothingEnabled = false;
     x.fillStyle = '#1b1830'; x.fillRect(0, 0, 90, 90);
-    const spr = renderSprite(f, POSE.idle, {});
-    x.drawImage(spr, SPR.OX - 39, SPR.OY - 198 * f.scale, 90, 90, 0, 0, 90, 90);
+    drawFighterHD(x, f, POSE.idle, 39, Math.round(192 * f.scale), 1, {});
     card.appendChild(c);
     const n = document.createElement('span'); n.textContent = f.name; card.appendChild(n);
     card.onclick = () => { if (selIdx === i) $('selOk').click(); else pickCard(i); };
