@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#06060d">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<title>Pixel MMA League</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><text y='14' font-size='14'>🥊</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="stage">
+  <canvas id="game" width="320" height="180"></canvas>
+  <div id="hud" class="hidden">
+    <div class="side l">
+      <div class="nm" id="nm0"></div>
+      <div class="bar"><i class="trail" id="tr0"></i><i class="hp" id="hp0"></i></div>
+      <div class="mt"><i id="mt0"></i><em>ЯРОСТЬ</em></div>
+      <div class="wn" id="wn0"></div>
+    </div>
+    <div id="clock">60</div>
+    <div class="side r">
+      <div class="nm" id="nm1"></div>
+      <div class="bar"><i class="trail" id="tr1"></i><i class="hp" id="hp1"></i></div>
+      <div class="mt"><i id="mt1"></i><em>ЯРОСТЬ</em></div>
+      <div class="wn" id="wn1"></div>
+    </div>
+    <div id="banner"></div>
+    <div class="sp" id="sp0"></div><div class="sp r" id="sp1"></div>
+    <div class="cmb" id="cb0"></div><div class="cmb r" id="cb1"></div>
+    <button id="pauseBtn" aria-label="Пауза">II</button>
+  </div>
+</div>
+
+<div id="rotHint">🔄 ПОВЕРНИ ТЕЛЕФОН —<br>БУДЕТ НА ВЕСЬ ЭКРАН</div>
+
+<div id="touch" class="hidden">
+  <div id="stick"><div id="knob"></div></div>
+  <div id="pad">
+    <button class="tb s" data-k="s">⚡<small>СПЕШЛ</small></button>
+    <button class="tb p" data-k="p">👊<small>РУКА</small></button>
+    <button class="tb k" data-k="k">🦶<small>НОГА</small></button>
+    <button class="tb b" data-k="b">🛡<small>БЛОК</small></button>
+  </div>
+</div>
+
+<div class="screen" id="s-title">
+  <h1 class="logo">PIXEL<br>MMA<span>ЛИГА БОЙЦОВ</span></h1>
+  <p class="blink" id="titleHint">НАЖМИ, ЧТОБЫ НАЧАТЬ</p>
+  <p class="tiny">© 2000 · 10 БОЙЦОВ · 4 АРЕНЫ</p>
+</div>
+
+<div class="screen hidden" id="s-menu">
+  <h1 class="logo small">PIXEL<br>MMA<span>ЛИГА БОЙЦОВ</span></h1>
+  <div class="col">
+    <button id="mBot" class="hot">⚔ БОЙ С БОТОМ</button>
+    <button id="mOnline">🔗 БОЙ С ДРУГОМ</button>
+    <button id="mHelp">🎮 КАК ИГРАТЬ</button>
+    <button class="music">♪ МУЗЫКА: ВКЛ</button>
+  </div>
+</div>
+
+<div class="screen hidden" id="s-select">
+  <h2 id="selTitle">ВЫБЕРИ БОЙЦА</h2>
+  <div class="selwrap">
+    <div id="grid"></div>
+    <div id="info">
+      <canvas id="prev" width="96" height="84"></canvas>
+      <div id="iName"></div>
+      <div id="iNick"></div>
+      <div id="iStats"></div>
+      <p id="iStyle"></p>
+      <p id="iSp"></p>
+    </div>
+  </div>
+  <div class="row">
+    <button id="selBack">НАЗАД</button>
+    <button id="selOk" class="hot">ВЫБРАТЬ</button>
+  </div>
+</div>
+
+<div class="screen hidden" id="s-setup">
+  <h2>АРЕНА</h2>
+  <div id="arenas"></div>
+  <h2>СЛОЖНОСТЬ БОТА</h2>
+  <div id="diffs" class="row"></div>
+  <div class="row">
+    <button id="setBack">НАЗАД</button>
+    <button id="setGo" class="hot">В БОЙ!</button>
+  </div>
+</div>
+
+<div class="screen hidden" id="s-host">
+  <h2>БОЙ С ДРУГОМ</h2>
+  <p>Отправь эту ссылку другу. Как только он откроет её и выберет бойца, начнётся бой.</p>
+  <input id="link" readonly placeholder="создаю ссылку...">
+  <div class="row">
+    <button id="copyBtn" class="hot">КОПИРОВАТЬ</button>
+    <button id="shareBtn">ПОДЕЛИТЬСЯ</button>
+  </div>
+  <p id="hostStatus" class="blink">СОЗДАЮ КОМНАТУ...</p>
+  <button id="hostCancel">ОТМЕНА</button>
+</div>
+
+<div class="screen hidden" id="s-join">
+  <h2>ТЕБЯ ВЫЗВАЛИ НА БОЙ!</h2>
+  <p>Друг уже ждёт в октагоне.</p>
+  <button id="joinGo" class="hot">ВЫБРАТЬ БОЙЦА</button>
+</div>
+
+<div class="screen hidden" id="s-wait">
+  <h2 id="waitTxt" class="blink">ПОДКЛЮЧАЮСЬ...</h2>
+  <button id="waitCancel">В МЕНЮ</button>
+</div>
+
+<div class="screen hidden dim" id="s-pause">
+  <h2>ПАУЗА</h2>
+  <div class="col">
+    <button id="pResume" class="hot">ПРОДОЛЖИТЬ</button>
+    <button class="music">♪ МУЗЫКА: ВКЛ</button>
+    <button id="pMenu">ВЫЙТИ В МЕНЮ</button>
+  </div>
+</div>
+
+<div class="screen hidden dim" id="s-result">
+  <h1 id="resTitle">ПОБЕДА!</h1>
+  <p id="resSub"></p>
+  <p id="resWait" class="blink hidden">ЖДЁМ РЕВАНША ОТ ДРУГА...</p>
+  <div class="col">
+    <button id="resAgain" class="hot">РЕВАНШ</button>
+    <button id="resNew">ДРУГОЙ БОЕЦ</button>
+    <button id="resMenu">МЕНЮ</button>
+  </div>
+</div>
+
+<div class="screen hidden" id="s-help">
+  <h2>КАК ИГРАТЬ</h2>
+  <div class="help">
+    <p><b>КОМПЬЮТЕР</b></p>
+    <p>← → — ходить · ↑ — прыжок · ↓ — присесть</p>
+    <p>J — рука · K — нога · L — спешл · ПРОБЕЛ — блок</p>
+    <p><b>ТЕЛЕФОН</b></p>
+    <p>Слева джойстик, справа кнопки.</p>
+    <p><b>ПРИЁМЫ</b></p>
+    <p>Вперёд + рука — кросс · вниз + рука — апперкот</p>
+    <p>Вперёд + нога — хай-кик · вниз + нога — лоу-кик</p>
+    <p>Тайсон и Усик — боксёры: вместо ног бьют хуками.</p>
+    <p>Попал — сразу жми следующий удар, будет комбо.</p>
+    <p><b>ЯРОСТЬ</b> копится от ударов. Полная — жми спешл!</p>
+    <p>Душат или держат — быстро долби кнопки, чтобы вырваться.</p>
+  </div>
+  <button id="helpBack" class="hot">ПОНЯЛ</button>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<script src="js/audio.js"></script>
+<script src="js/fighters.js"></script>
+<script src="js/stages.js"></script>
+<script src="js/game.js"></script>
+<script src="js/ui.js"></script>
+</body>
+</html>
