@@ -97,16 +97,22 @@ function updateParts() {
 // ---------- Ввод ударов
 function pickMove(f, btn, fwd, down, back, near) {
   if (btn === 'p') {
+    if (near && down && !fwd && !back) return 'shortUpper';
     if (down) return fwd ? 'bodyHook' : back ? 'bodyJab' : 'upper';
     if (back) return 'backfist';
     if (near && !fwd) return 'elbowS';
     return fwd ? 'cross' : 'jab';
   }
+  if (near && down && !fwd && !back) return 'kneeBody';
   if (down) return fwd ? 'bodyKick' : back ? 'axeKick' : 'lowKick';
   if (back) return 'spinKick';
   if (near && !fwd) return 'kneeS';
   return fwd ? 'highKick' : 'teep';
 }
+
+// рука + нога вместе: сальто, а с направлением — супермен, подсечка или удар назад
+const PK_MOVES = ['flipKick', 'superman', 'sweep', 'spinBackKick'];
+const comboPK = (fwd, down, back) => (down ? 'sweep' : fwd ? 'superman' : back ? 'spinBackKick' : 'flipKick');
 
 function setSt(f, s) { if (f.st !== s) { f.st = s; f.t = 0; } }
 
@@ -137,7 +143,9 @@ function updFighter(f, o) {
     const fwd = fwdOf(), bk = backOf();
     const near = Math.abs(o.x - f.x) < 25 * D.scale;
     if (pr('s') && f.meter >= 100) startMove(f, D.special);
-    else if ((pr('p') && I.k) || (pr('k') && I.p)) startMove(f, 'flipKick');
+    else if ((pr('p') && I.k) || (pr('k') && I.p)) startMove(f, comboPK(fwd, I.d, bk));
+    else if (I.b && pr('p')) startMove(f, 'counterHook');
+    else if (I.b && pr('k')) startMove(f, I.d ? 'calfKick' : 'obliqueKick');
     else if (pr('p')) startMove(f, pickMove(f, 'p', fwd, I.d, bk, near));
     else if (pr('k')) startMove(f, pickMove(f, 'k', fwd, I.d, bk, near));
     else if (I.b) { setSt(f, 'block'); f.crouchB = !!I.d; }
@@ -151,14 +159,19 @@ function updFighter(f, o) {
     else if (bk) { setSt(f, 'walk'); f.vx = -1.0 * D.walk * f.face; }
     else setSt(f, 'idle');
   } else if (f.st === 'jump') {
-    if (!f.airUsed && (pr('p') || pr('k'))) { f.airUsed = true; startMove(f, pr('p') ? 'airPunch' : 'airKick'); }
+    if (!f.airUsed && (pr('p') || pr('k'))) {
+      f.airUsed = true;
+      const fw = fwdOf();
+      if (pr('p')) startMove(f, I.d ? 'hammerFist' : fw ? 'jumpKnee' : 'airPunch');
+      else startMove(f, I.d ? 'stomp' : fw ? 'flyingKick' : 'airKick');
+    }
   } else if (f.st === 'attack') {
     const m = f.mv, t0 = f.mvT;
     f.mvT += D.spd;
     if (inLunge(f)) f.vx = m.lunge[2] * f.face;
     if (m.jump && t0 < m.jump[0] && f.mvT >= m.jump[0]) f.vy = m.jump[1];
     // рука и нога почти одновременно — сальто
-    if (f.mvT < 6 && m.cat !== 's' && !m.air && ((m.cat === 'p' && pr('k')) || (m.cat === 'k' && pr('p'))) && f.mvId !== 'flipKick') startMove(f, 'flipKick');
+    if (f.mvT < 6 && m.cat !== 's' && !m.air && !PK_MOVES.includes(f.mvId) && ((m.cat === 'p' && pr('k')) || (m.cat === 'k' && pr('p')))) startMove(f, comboPK(fwdOf(), I.d, backOf()));
     else if (m.chain && f.mvT >= m.chain.at && pr(m.chain.btn) && !I.d && !backOf()) startMove(f, m.chain.to);
     else if (f.landed && m.cancel && f.mvT >= m.cancel) {
       const fwd = fwdOf(), bk = backOf();
@@ -205,13 +218,62 @@ function land(f) {
 // ---------- Попадания
 const canBeHit = d => !['down', 'ko', 'held', 'grab', 'clinch'].includes(d.st) && d.inv <= 0;
 
-function hurt(d, pt) {
-  if (!canBeHit(d)) return false;
-  const s = d.def.scale;
-  const low = d.st === 'crouch' || (d.st === 'block' && d.crouchB);
-  const top = d.y - (low ? 42 : 58) * s;
-  const hw = 9 * d.def.bulk * s + 3, cx = d.x + d.face * 2 * s;
-  return pt[0] >= cx - hw && pt[0] <= cx + hw && pt[1] >= top - 5 && pt[1] <= d.y + 2;
+// ---------- Хитбоксы по частям тела: капсулы по текущей позе
+function segDist(p1, q1, p2, q2) {
+  const d1 = [q1[0] - p1[0], q1[1] - p1[1]], d2 = [q2[0] - p2[0], q2[1] - p2[1]], r = [p1[0] - p2[0], p1[1] - p2[1]];
+  const a = d1[0] * d1[0] + d1[1] * d1[1], e = d2[0] * d2[0] + d2[1] * d2[1], f = d2[0] * r[0] + d2[1] * r[1];
+  let sN, tN;
+  if (a < 1e-6 && e < 1e-6) return [Math.hypot(r[0], r[1]), p1];
+  if (a < 1e-6) { sN = 0; tN = clamp(f / e, 0, 1); }
+  else {
+    const c = d1[0] * r[0] + d1[1] * r[1];
+    if (e < 1e-6) { tN = 0; sN = clamp(-c / a, 0, 1); }
+    else {
+      const bb = d1[0] * d2[0] + d1[1] * d2[1], den = a * e - bb * bb;
+      sN = den ? clamp((bb * f - c * e) / den, 0, 1) : 0;
+      tN = (bb * sN + f) / e;
+      if (tN < 0) { tN = 0; sN = clamp(-c / a, 0, 1); } else if (tN > 1) { tN = 1; sN = clamp((bb - c) / a, 0, 1); }
+    }
+  }
+  const c1 = [p1[0] + d1[0] * sN, p1[1] + d1[1] * sN], c2 = [p2[0] + d2[0] * tN, p2[1] + d2[1] * tN];
+  return [Math.hypot(c1[0] - c2[0], c1[1] - c2[1]), c1];
+}
+
+function bodyParts(d) {
+  const pose = getPose(d), s = d.def.scale, bk = d.def.bulk, Y = d.y + poseExtra(d).dy;
+  const W = n => jointWorld(d.def, pose, d.x, Y, d.face, n);
+  const hip = W('hip'), neck = W('neck'), ux = neck[0] - hip[0], uy = neck[1] - hip[1], ul = Math.hypot(ux, uy) || 1;
+  const head = [neck[0] + ux / ul * 4.4 * s, neck[1] + uy / ul * 4.4 * s];
+  const fk = W('fk'), bkn = W('bk');
+  return [
+    { z: 'head', a: head, b: head, r: 4.7 * s },
+    { z: 'body', a: hip, b: neck, r: 5.4 * bk * s },
+    { z: 'leg', a: hip, b: fk, r: 3.1 * bk * s }, { z: 'leg', a: fk, b: W('ff'), r: 2.3 * s },
+    { z: 'leg', a: hip, b: bkn, r: 3.1 * bk * s }, { z: 'leg', a: bkn, b: W('bf'), r: 2.3 * s },
+    { z: 'arm', a: W('fe'), b: W('fh'), r: 2.3 * s }, { z: 'arm', a: W('be'), b: W('bh'), r: 2.3 * s },
+  ];
+}
+
+// ударная часть: перчатка с предплечьем, голень со стопой, колено, локоть
+function strikeSeg(a, pose, limb) {
+  const s = a.def.scale, Y = a.y + poseExtra(a).dy, W = n => jointWorld(a.def, pose, a.x, Y, a.face, n);
+  const L2 = (p, q, t) => [p[0] + (q[0] - p[0]) * t, p[1] + (q[1] - p[1]) * t];
+  if (limb === 'fh' || limb === 'bh') { const e = W(limb === 'fh' ? 'fe' : 'be'), h = W(limb); return [L2(e, h, 0.25), h, 2.4 * s]; }
+  if (limb === 'ff' || limb === 'bf') { const k = W(limb === 'ff' ? 'fk' : 'bk'), f = W(limb); return [L2(k, f, 0.15), f, 2.6 * s]; }
+  if (limb === 'fk') { const h = W('hip'), k = W('fk'); return [L2(h, k, 0.7), k, 3 * s]; }
+  const e = W('be'), n = W('neck'); return [L2(n, e, 0.6), e, 2.5 * s];
+}
+
+const ZONE = { head: 1.15, body: 1, leg: 0.9, arm: 0.5 };
+const ZORDER = ['head', 'body', 'leg', 'arm'];
+function hitZone(d, seg) {
+  if (!canBeHit(d)) return null;
+  let best = null;
+  for (const p of bodyParts(d)) {
+    const [dist, at] = segDist(seg[0], seg[1], p.a, p.b);
+    if (dist <= p.r + seg[2] && (!best || ZORDER.indexOf(p.z) < ZORDER.indexOf(best.z))) best = { z: p.z, at };
+  }
+  return best;
 }
 
 function checkHits(a, d) {
@@ -228,14 +290,15 @@ function checkHits(a, d) {
   const pose = getPose(a);
   m.hits.forEach((h, i) => {
     if (a.hitDone[i] || a.mvT < h.s || a.mvT > h.e) return;
-    const pt = jointWorld(a.def, pose, a.x, a.y, a.face, h.limb);
-    if (hurt(d, pt)) { a.hitDone[i] = true; applyHit(a, d, h, m, pt); }
+    const hz = hitZone(d, strikeSeg(a, pose, h.limb));
+    if (hz) { a.hitDone[i] = true; applyHit(a, d, h, m, hz.at, hz.z); }
   });
 }
 
-function applyHit(a, d, h, m, pt) {
+function applyHit(a, d, h, m, pt, zone = 'body') {
   const mul = m.cat === 'p' ? a.def.pMul : m.cat === 'k' ? a.def.kMul : 1;
-  let dmg = h.dmg * mul;
+  let dmg = h.dmg * mul * ZONE[zone];
+  if (zone === 'arm') h = { ...h, stun: Math.round(h.stun * 0.6), kd: false };
   const facing = d.face === Math.sign(a.x - d.x);
   if (d.st === 'block' && facing) {
     dmg *= 0.15;
@@ -427,7 +490,7 @@ function aiInput(me, op, ai) {
     if ((me.landed || me.mv.chain) && R() < P.combo * 0.2) I[me.mv.chain ? 'p' : R() < 0.6 ? 'p' : 'k'] = 1;
     return I;
   }
-  if (me.st === 'jump') { if (dist < 40 && R() < 0.1) I.k = 1; return I; }
+  if (me.st === 'jump') { if (dist < 44 && R() < 0.12) { I[R() < 0.5 ? 'k' : 'p'] = 1; const q = R(); if (q < 0.35) I.d = 1; else if (q < 0.7) I[F] = 1; } return I; }
   const reach = 30 * me.def.scale + 6;
   if (op.st === 'down' || op.st === 'held' || op.st === 'ko') {
     if (dist > 56) I[F] = 1; else if (dist < 38) I[B] = 1;
@@ -445,7 +508,8 @@ function aiInput(me, op, ai) {
     const spOK = grabber ? dist <= 28 * m.scale : dist <= 50;
     if (me.meter >= 100 && spOK && R() < P.sp) { I.s = 1; return I; }
     const r = R(), v = R();
-    if (r < 0.04) { I.p = 1; I.k = 1; return I; }
+    if (r < 0.06) { I.p = 1; I.k = 1; const q = R(); if (q < 0.25) I[F] = 1; else if (q < 0.5) I.d = 1; else if (q < 0.7) I[B] = 1; return I; }
+    if (r < 0.1) { I.b = 1; I[R() < 0.5 ? 'p' : 'k'] = 1; if (R() < 0.3) I.d = 1; return I; }
     if (v < 0.32) {} else if (v < 0.55) I[F] = 1; else if (v < 0.72) I.d = 1; else if (v < 0.82) { I.d = 1; I[F] = 1; }
     else if (v < 0.9) { I.d = 1; I[B] = 1; } else I[B] = 1;
     I[r < 0.5 ? 'p' : 'k'] = 1;
@@ -726,7 +790,7 @@ function tick() {
   }
 }
 
-const RS = 2; // бойцы рисуются в двойном разрешении — 128+ пикселей ростом
+const RS = 3; // картинка 960×540: бойцы ~180 пикселей ростом
 function render(now) {
   const c = ctx;
   let sx = 0, sy = 0;

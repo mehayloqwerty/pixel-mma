@@ -327,7 +327,7 @@ const Sound = (() => {
     tsarukyan: ['Middle Eastern Music', '331music'], mcgregor: ['Celtic Bagpipe Rock', 'vjgalaxy'],
     adesanya: ['Afro Trap x Guitar x Banger', '47643651'], poirier: ['Cinematic Action Rock Trailer Intro', 'Loka_music'],
     ngannou: ['Epic Trailer', 'NastelBom'], usyk: ['Cossack Confluence', 'Rockot'],
-    pimblett: ['Punk Rock Rebellion Fast Energy', 'echoes_of_lumen'], fight: ['Dark Aggressive Boom-Bap Beat', 'PWLPL'],
+    pimblett: ['Punk Rock Rebellion Fast Energy', 'echoes_of_lumen'], fight: ['Apocalypse', 'AUDIOREZOUT'],
   };
   const player = new Audio();
   player.loop = true; player.preload = 'auto';

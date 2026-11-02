@@ -1,6 +1,8 @@
 // Детальные бойцы: рисуем гладкими объёмными формами в большом размере,
 // уменьшаем в пиксели, сводим цвета к нескольким тонам и обводим — как ручной пиксель-арт
-const SPR = { W: 180, H: 190, OX: 90, OY: 170, SS: 2 };
+// PPU — пикселей на единицу позы: 3 = картинка 960×540, боец ~180 px ростом
+const PPU = 3;
+const SPR = { W: 270, H: 285, OX: 135, OY: 255, SS: 2 };
 const sprHi = document.createElement('canvas');
 sprHi.width = SPR.W * SPR.SS; sprHi.height = SPR.H * SPR.SS;
 const sprLo = document.createElement('canvas');
@@ -91,33 +93,61 @@ function glove(hand, elbow, L, colGlove, box) {
   hx.restore();
 }
 
-function head(L, o) {
+// черты лица у каждого свои: w/h — череп, jaw — челюсть, chin — подбородок, nl/nd/nw — нос (длина, опущенность, ширина),
+// hook — горбинка, bt/bs — брови (толщина, хмурость), es — глаза, lip — губы, cauli — «борцовские» уши, smile — ухмылка
+const FACES = {
+  khabib:    { w: 1.02, h: 1.0, jaw: 1.12, chin: 0.2, nl: 0.5, nd: 0.4, nw: 0.4, hook: 0.6, bt: 0.95, bs: 0.35, es: 0.85, lip: 0.4, cauli: 1 },
+  oliveira:  { w: 0.94, h: 1.06, jaw: 0.92, chin: 0.5, nl: 0.6, nd: 0.3, nw: 0.1, hook: 0.2, bt: 0.6, bs: 0.1, es: 1.0, lip: 0.4 },
+  jones:     { w: 0.95, h: 1.1, jaw: 0.95, chin: 0.3, nl: 0.0, nd: 0.2, nw: 0.6, hook: 0, bt: 0.6, bs: 0.2, es: 1.0, lip: 0.7 },
+  tyson:     { w: 1.08, h: 0.96, jaw: 1.2, chin: 0.1, nl: -0.5, nd: 0.4, nw: 0.9, hook: 0, bt: 0.9, bs: 0.4, es: 0.85, lip: 0.6 },
+  tsarukyan: { w: 1.04, h: 1.0, jaw: 1.05, chin: 0.1, nl: 0.7, nd: 0.5, nw: 0.4, hook: 0.4, bt: 0.9, bs: 0.25, es: 0.95, lip: 0.4, cauli: 1 },
+  mcgregor:  { w: 0.98, h: 1.02, jaw: 1.0, chin: 0.3, nl: 0.3, nd: 0.1, nw: 0.2, hook: 0.3, bt: 0.75, bs: 0.6, es: 0.9, lip: 0.35, smile: 0.4 },
+  adesanya:  { w: 0.92, h: 1.06, jaw: 0.9, chin: 0.2, nl: -0.1, nd: 0.2, nw: 0.7, hook: 0, bt: 0.55, bs: 0.0, es: 1.1, lip: 0.6 },
+  poirier:   { w: 1.05, h: 0.98, jaw: 1.08, chin: 0.0, nl: -0.2, nd: 0.4, nw: 0.7, hook: 0.1, bt: 0.8, bs: 0.15, es: 0.9, lip: 0.4, cauli: 1 },
+  ngannou:   { w: 1.1, h: 1.05, jaw: 1.18, chin: 0.2, nl: -0.3, nd: 0.4, nw: 1.0, hook: 0, bt: 0.85, bs: 0.3, es: 0.9, lip: 0.7 },
+  usyk:      { w: 0.95, h: 1.08, jaw: 0.95, chin: 0.6, nl: 0.4, nd: 0.2, nw: 0.2, hook: 0.1, bt: 0.55, bs: -0.1, es: 1.0, lip: 0.35, smile: 0.7 },
+  pimblett:  { w: 1.06, h: 0.98, jaw: 1.0, chin: 0.0, nl: -0.3, nd: 0.0, nw: 0.3, hook: 0, bt: 0.55, bs: -0.2, es: 1.05, lip: 0.4, smile: 0.9 },
+};
+const FACE0 = { w: 1, h: 1, jaw: 1, chin: 0.2, nl: 0, nd: 0.2, nw: 0.3, hook: 0, bt: 0.7, bs: 0, es: 1, lip: 0.4 };
+
+function head(L, o, F = FACE0) {
   const skin = L.skin, hair = L.hair, beard = L.beardCol || L.hair;
   // череп и челюсть
   hx.beginPath();
-  hx.ellipse(-0.2, -0.7, 4.0, 4.4, 0, 0, TAU);
-  hx.moveTo(-3.3, 1.0); hx.lineTo(-1.5, 3.9); hx.quadraticCurveTo(1.2, 5.1, 3.1, 4.2);
-  hx.lineTo(3.9, 2.4); hx.lineTo(4.1, 0.1); hx.lineTo(-3.3, 1.0);
+  hx.ellipse(-0.2, -0.7, 4.0 * F.w, 4.4 * F.h, 0, 0, TAU);
+  const jy = F.jaw, cx = 3.1 + F.chin;
+  hx.moveTo(-3.3 * F.w, 1.0); hx.lineTo(-1.5 * jy, 3.9 * jy); hx.quadraticCurveTo(1.2, 5.1 * jy, cx, 4.2 * (0.9 + jy * 0.1));
+  hx.lineTo(3.9 + F.chin * 0.5, 2.4); hx.lineTo(4.1 * F.w, 0.1); hx.lineTo(-3.3 * F.w, 1.0);
   const g = hx.createRadialGradient(1.6, -1.8, 0.5, 0.4, 0, 6.2);
   g.addColorStop(0, css(skin, 1.28)); g.addColorStop(0.45, css(skin, 1.0)); g.addColorStop(1, css(skin, 0.62));
   hx.fillStyle = g; hx.fill();
   // глазница, скула, нос
-  hx.fillStyle = css(skin, 0.8); hx.beginPath(); hx.ellipse(2.5, -0.2, 1.3, 0.85, 0, 0, TAU); hx.fill();
-  hx.fillStyle = css(skin, 1.22, 0.8); hx.beginPath(); hx.ellipse(2.4, 1.3, 1.2, 0.6, -0.3, 0, TAU); hx.fill();
-  hx.beginPath(); hx.moveTo(3.5, -0.9); hx.lineTo(5.2, 1.5); hx.lineTo(3.9, 2.0); hx.closePath();
+  hx.fillStyle = css(skin, 0.8); hx.beginPath(); hx.ellipse(2.5, -0.2, 1.3, 0.85 * F.es, 0, 0, TAU); hx.fill();
+  hx.fillStyle = css(skin, 1.22, 0.8); hx.beginPath(); hx.ellipse(2.4, 1.3, 1.2 * F.w, 0.6, -0.3, 0, TAU); hx.fill();
+  // нос: длина, опущенность кончика, ширина крыльев, горбинка
+  const tipX = 5.2 + F.nl, tipY = 1.5 + F.nd, baseX = 3.9 - F.nw * 0.6;
+  hx.beginPath(); hx.moveTo(3.5, -0.9);
+  hx.quadraticCurveTo(4.3 + F.hook * 1.2, 0.0 - F.hook * 0.6, tipX, tipY);
+  hx.lineTo(tipX - 0.3, tipY + 0.4); hx.lineTo(baseX, 2.0 + F.nd * 0.5); hx.closePath();
   hx.fillStyle = css(skin, 1.05); hx.fill();
-  hx.fillStyle = css(skin, 0.6); hx.fillRect(3.8, 1.75, 1.0, 0.35);
-  // ухо
-  hx.fillStyle = css(L.skinD, 1.05); hx.beginPath(); hx.ellipse(-1.1, 0.6, 0.95, 1.45, 0, 0, TAU); hx.fill();
+  hx.fillStyle = css(skin, 0.6); hx.fillRect(baseX - 0.1, 1.75 + F.nd * 0.5, 1.0 + F.nw * 0.6, 0.35);
+  line([[3.6, -0.6], [tipX - 0.4, tipY - 0.2]], css(skin, 1.3, 0.6), 0.25);
+  // ухо (у борцов — «сломанное»)
+  const er = F.cauli ? 1.25 : 1;
+  hx.fillStyle = css(L.skinD, 1.05); hx.beginPath(); hx.ellipse(-1.1, 0.6, 0.95 * er, 1.45 * er, 0, 0, TAU); hx.fill();
   hx.fillStyle = css(L.skinD, 0.7); hx.beginPath(); hx.ellipse(-1.0, 0.7, 0.4, 0.8, 0, 0, TAU); hx.fill();
-  // глаз и бровь
-  hx.fillStyle = '#efe7dc'; hx.beginPath(); hx.ellipse(2.65, -0.15, 0.75, 0.4, 0, 0, TAU); hx.fill();
-  hx.fillStyle = '#24160f'; hx.beginPath(); hx.arc(3.05, -0.15, 0.36, 0, TAU); hx.fill();
-  line([[1.5, -1.25], [2.7, -1.5], [3.8, -1.2]], css(L.hairStyle === 'bald' ? L.skinD : hair, 0.85), 0.7);
-  // рот
+  if (F.cauli) for (const [ex, ey] of [[-1.5, 0], [-0.7, 1.4], [-1.4, 1.5]]) { hx.fillStyle = css(L.skinD, 1.25); hx.beginPath(); hx.arc(ex, ey, 0.38, 0, TAU); hx.fill(); }
+  // глаз, веко и бровь
+  const es = F.es;
+  hx.fillStyle = '#efe7dc'; hx.beginPath(); hx.ellipse(2.65, -0.15, 0.75 * es, 0.4 * es, 0, 0, TAU); hx.fill();
+  hx.fillStyle = '#24160f'; hx.beginPath(); hx.arc(3.0 + 0.05 * es, -0.15, 0.36 * es, 0, TAU); hx.fill();
+  line([[1.95, -0.5], [3.35, -0.55]], css(skin, 0.55), 0.22);
+  line([[1.5, -1.25 + F.bs * 0.4], [2.7, -1.5], [3.8, -1.2 - F.bs * 0.5]], css(L.hairStyle === 'bald' ? L.skinD : hair, 0.85), F.bt);
+  // рот и губы, у кого-то ухмылка
   if (L.beard !== 'full') {
-    line([[2.5, 2.75], [3.75, 2.55]], css(skin, 0.5), 0.35);
-    line([[2.7, 3.15], [3.5, 3.05]], css(skin, 1.2), 0.3);
+    const sm = F.smile || 0;
+    line([[2.4, 2.75 - sm * 0.2], [3.0, 2.85], [3.75, 2.55 - sm * 0.45]], css(skin, 0.5), 0.35);
+    line([[2.7, 3.15], [3.5, 3.05]], css(skin, 1.2), 0.2 + F.lip * 0.25);
   }
   if (L.tattoo === 'face') {
     line([[1.6, -1.9], [2.3, -2.4], [3.0, -2.0]], 'rgba(20,20,20,0.9)', 0.3);
@@ -175,7 +205,7 @@ function renderSprite(def, pose, o = {}) {
   const L = def.look, w = def.bulk, suit = L.suit;
   hx.setTransform(1, 0, 0, 1, 0, 0);
   hx.clearRect(0, 0, sprHi.width, sprHi.height);
-  const U = 2 * SPR.SS * def.scale;
+  const U = PPU * SPR.SS * def.scale;
   hx.setTransform(U, 0, 0, U, SPR.OX * SPR.SS, SPR.OY * SPR.SS);
   const J = {};
   for (let i = 0; i < 10; i++) J[JOINTS[i]] = [pose[i * 2], pose[i * 2 + 1]];
@@ -292,7 +322,7 @@ function renderSprite(def, pose, o = {}) {
   const hc = [J.neck[0] + up[0] * 4.4, J.neck[1] + up[1] * 4.4];
   limb(P(tl - 1.2, 0.2), [J.neck[0] + up[0] * 1.6, J.neck[1] + up[1] * 1.6], 1.9 * w, 1.7 * w, skin);
   hx.save(); hx.translate(hc[0], hc[1]); hx.rotate(Math.atan2(up[1], up[0]) + Math.PI / 2);
-  head(L, o);
+  head(L, o, FACES[def.id] || FACE0);
   hx.restore();
 
   // передняя рука
