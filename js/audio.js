@@ -323,7 +323,9 @@ const Sound = (() => {
     menu: 'Volatile Reaction', khabib: 'Five Armies', oliveira: 'Samba Isobel', jones: 'Hitman',
     tyson: 'Movement Proposition', tsarukyan: 'Desert City', mcgregor: 'Celtic Impulse', adesanya: 'Rites',
     poirier: 'Rollin at 5', ngannou: 'Killers', usyk: 'Crusade', pimblett: 'Cut and Run',
+    fight: 'Dark Aggressive Boom-Bap Beat',
   };
+  const AUTHOR = name => (name === 'fight' ? 'PWLPL (Pixabay)' : 'Kevin MacLeod');
   const player = new Audio();
   player.loop = true; player.preload = 'auto';
   let trackName = null;
@@ -356,7 +358,6 @@ const Sound = (() => {
 
   function music(name) {
     init(); if (!ctx) return;
-    if (name === 'fight') { player.pause(); trackName = null; chip('fight'); return; }
     if (!TRACKS[name]) name = 'menu';
     if (trackName === name) { if (player.paused && !document.hidden) player.play().catch(() => {}); return; }
     clearInterval(timer); timer = null; song = null;
@@ -419,7 +420,7 @@ const Sound = (() => {
 
   return {
     init, music, stopMusic, sfx, setMuted, say, hush,
-    title: name => (TRACKS[name] || TRACKS.menu) + ' — Kevin MacLeod',
+    title: name => (TRACKS[name] ? TRACKS[name] + ' — ' + AUTHOR(name) : TRACKS.menu + ' — Kevin MacLeod'),
     credits: () => Object.values(TRACKS),
     get muted() { return muted; },
     set quiet(q) { quiet = q; },

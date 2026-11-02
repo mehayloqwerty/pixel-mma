@@ -17,3 +17,7 @@ Licensed under Creative Commons: By Attribution 4.0 License — http://creativec
 | ngannou.m4a | "Killers" |
 | usyk.m4a | "Crusade" |
 | pimblett.m4a | "Cut and Run" |
+
+## Музыка боёв
+
+fight.m4a — "Dark Aggressive Boom-Bap Beat – Raw Piano, Tense Strings, Gang Shouts" by PWLPL, Pixabay: https://pixabay.com/music/beats-dark-aggressive-boom-bap-beat-raw-piano-tense-strings-gang-shouts-468530/ (Pixabay Content License).
