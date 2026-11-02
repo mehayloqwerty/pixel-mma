@@ -166,9 +166,7 @@ function drawPreview() {
   c.imageSmoothingEnabled = false;
   p.t++;
   if (!p.mv && p.t > 40) {
-    const order = p.def.boxer
-      ? ['jab', 'cross', 'hook', 'doubleJab', 'overhand', 'oneTwo', p.def.special]
-      : ['jab', 'cross', 'highKick', 'backfist', 'bodyKick', 'spinKick', p.def.special];
+    const order = ['jab', 'cross', 'highKick', 'backfist', 'bodyKick', 'spinKick', p.def.special];
     p.mv = MOVES[order[p.n++ % order.length]]; p.mvT = 0;
   }
   let pose;

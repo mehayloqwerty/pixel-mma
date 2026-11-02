@@ -88,13 +88,11 @@ function updateParts() {
 
 // ---------- Ввод ударов
 function pickMove(f, btn, fwd, down, back) {
-  const box = f.def.boxer;
   if (btn === 'p') {
-    if (down) return 'upper';
-    if (back) return box ? 'doubleJab' : 'backfist';
+    if (down) return fwd ? 'bodyHook' : 'upper';
+    if (back) return 'backfist';
     return fwd ? 'cross' : 'jab';
   }
-  if (box) return down ? 'bodyHook' : back ? 'oneTwo' : fwd ? 'overhand' : 'hook';
   if (down) return fwd ? 'bodyKick' : 'lowKick';
   if (back) return 'spinKick';
   return fwd ? 'highKick' : 'teep';
