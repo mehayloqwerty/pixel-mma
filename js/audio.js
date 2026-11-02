@@ -1,6 +1,6 @@
 // 8-битный звук: выходные темы бойцов и эффекты прямо на WebAudio, без файлов
 const Sound = (() => {
-  let ctx = null, master, musicBus, leadBus, sfxBus, noiseBuf, waves = {};
+  let ctx = null, master, musicBus, leadBus, distBus, drumBus, sfxBus, noiseBuf, waves = {};
   let song = null, timer = null, nextTime = 0, stepN = 0;
   let muted = false;
   try { muted = localStorage.getItem('pml_mute') === '1'; } catch (e) {}
@@ -33,6 +33,17 @@ const Sound = (() => {
     const dl = ctx.createDelay(1), fb = ctx.createGain(), wet = ctx.createGain(), lp = ctx.createBiquadFilter();
     dl.delayTime.value = 0.21; fb.gain.value = 0.28; wet.gain.value = 0.32; lp.type = 'lowpass'; lp.frequency.value = 2600;
     leadBus.connect(dl); dl.connect(lp); lp.connect(fb); fb.connect(dl); lp.connect(wet); wet.connect(musicBus);
+    // перегруз для баса и пауэр-аккордов
+    const ws = ctx.createWaveShaper(), curve = new Float32Array(1024);
+    for (let i = 0; i < 1024; i++) { const x = i / 512 - 1; curve[i] = Math.tanh(x * 6); }
+    ws.curve = curve;
+    const dlp = ctx.createBiquadFilter(); dlp.type = 'lowpass'; dlp.frequency.value = 3200;
+    distBus = ctx.createGain(); distBus.gain.value = 0.9;
+    const dOut = ctx.createGain(); dOut.gain.value = 0.32;
+    distBus.connect(ws); ws.connect(dlp); dlp.connect(dOut); dOut.connect(musicBus);
+    // барабаны чуть подрубленные — плотнее
+    const dc = ctx.createDynamicsCompressor(); dc.threshold.value = -18; dc.ratio.value = 6;
+    drumBus = ctx.createGain(); drumBus.gain.value = 1.15; drumBus.connect(dc); dc.connect(musicBus);
     sfxBus = ctx.createGain(); sfxBus.gain.value = 0.9; sfxBus.connect(master);
     noiseBuf = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate);
     const d = noiseBuf.getChannelData(0);
@@ -77,7 +88,7 @@ const Sound = (() => {
     G7: ['G4', 'B4', 'F5'], C7: ['C4', 'E4', 'A#4'], D7: ['D4', 'F#4', 'C5'], Em: ['E4', 'G4', 'B4'], B: ['B3', 'D#4', 'F#4'],
     Glo: ['G3', 'B3', 'D4'], Am5: ['A4', 'C#5', 'E5'],
   };
-  const S = (o) => ({ arpVol: 0.03, leadVol: 0.085, wave: 'square', ...o, lead: o.lead.map(bar), chords: o.chords.map(c => CH[c]) });
+  const S = (o) => ({ arpVol: 0.03, leadVol: 0.11, wave: 'square', ...o, lead: o.lead.map(bar), chords: o.chords.map(c => CH[c]) });
 
   const SONGS = {
     menu: S({
@@ -186,6 +197,23 @@ const Sound = (() => {
     }),
   };
 
+  // жёсткая версия: быстрее, двойная бочка, пауэр-аккорды
+  const HARD = {
+    menu:      { bpm: 122, riff: 'x..x..x.x.......', drums: ['k.h.s.hkk.h.s.h.', 'k.hks.hkk.hks.ss'] },
+    khabib:    { bpm: 162, riff: 'x.xx.x.xx.xx.x.x', drums: ['k.hkk.hsk.hkk.hs', 'kkhkk.hskkhks.ss'], hats16: 1 },
+    oliveira:  { bpm: 136, riff: 'x..x..x.x..x..x.', drums: ['k..k.hs.k..k.hsh', 'k..kk.s.k.kk.sss'], hats16: 1 },
+    jones:     { bpm: 146, riff: 'x.......x.x.....', drums: ['k.hhh.hhs.hhkhhh', 'k.hhhkhhs.hhhhss'] },
+    tyson:     { bpm: 100, riff: 'x..x....x.x.....', drums: ['k..ks..kk.k.s..s', 'k..ks..k.kkks.ss'], hats16: 1 },
+    tsarukyan: { bpm: 128, riff: 'x...x...x...x.x.', drums: ['k.hks.hkk.hks.hs', 'kkhks.hkkkhks.ss'] },
+    mcgregor:  { bpm: 176, riff: 'x.xx.xx.xx.x.xx.', drums: ['k.hhs.hhk.hhs.hk', 'kkhhs.hhkkhhsss.'] },
+    adesanya:  { bpm: 114, riff: 'x..x.x..x..x.x..', drums: ['k..hs.hkk.hks.hh', 'k.khs.hkk.hks.ss'], hats16: 1 },
+    poirier:   { bpm: 134, riff: 'x.x.x.x.x.x.x.x.', drums: ['k.h.s.hkk.h.s.hh', 'kkh.s.hkkkh.s.ss'] },
+    ngannou:   { bpm: 92, riff: 'x...x.x.x...x...', drums: ['k.k...s.k.k.kks.', 'kkk...s.kkk.s.ss'], hats16: 1 },
+    usyk:      { bpm: 154, riff: 'x.x.x.xxx.x.x.xx', drums: ['k.h.s.hkk.h.s.hs', 'kkh.s.hkkkh.s.ss'] },
+    pimblett:  { bpm: 142, riff: 'x..x..x.x..x..x.', drums: ['k.h.s.hkk.h.s.h.', 'k.hks.hkk.hks.ss'] },
+  };
+  for (const k in HARD) Object.assign(SONGS[k], HARD[k]);
+
   function playStep(i, t, sd) {
     const s = song, b = Math.floor(i / 16) % s.lead.length, k = i % 16;
     const tok = s.lead[b][k];
@@ -197,15 +225,30 @@ const Sound = (() => {
     }
     const ch = s.chords[b % s.chords.length];
     if (s.arpVol) tone('p12', freq(ch[k % ch.length]), t, sd * 0.7, s.arpVol, musicBus);
+    const root = freq(s.roots[b % s.roots.length]);
     const bo = s.bass[k];
     if (bo !== null) {
-      const f = freq(s.roots[b % s.roots.length]) * Math.pow(2, bo / 12);
-      tone('triangle', f, t, sd * 1.6, 0.26, musicBus);
+      const f = root * Math.pow(2, bo / 12);
+      tone('triangle', f, t, sd * 1.6, 0.24, musicBus);
+      tone('sawtooth', f, t, sd * 1.3, 0.22, distBus);
     }
+    // пауэр-аккорд: прима + квинта + октава через перегруз
+    if (s.riff && s.riff[k] === 'x') {
+      [0, 7, 12].forEach(st => tone('sawtooth', root * 2 * Math.pow(2, st / 12), t, sd * 1.7, 0.14, distBus));
+    }
+    if (k === 0 && b % 4 === 0) noise(t, 1.1, 0.16, drumBus, 'highpass', 5000);
     const dr = s.drums[b % s.drums.length][k];
-    if (dr === 'k') { tone('sine', 170, t, 0.17, 0.55, musicBus, 38); noise(t, 0.015, 0.25, musicBus, 'lowpass', 3000); }
-    if (dr === 's') { noise(t, 0.14, 0.3, musicBus, 'highpass', 1200); tone('triangle', 200, t, 0.08, 0.2, musicBus, 110); }
-    if (dr === 'h') noise(t, 0.03, 0.11, musicBus, 'highpass', 7500);
+    if (dr === 'k') {
+      tone('sine', 190, t, 0.22, 0.85, drumBus, 36);
+      noise(t, 0.02, 0.4, drumBus, 'lowpass', 4000);
+    }
+    if (dr === 's') {
+      noise(t, 0.2, 0.55, drumBus, 'highpass', 900);
+      noise(t, 0.05, 0.4, drumBus, 'bandpass', 3500);
+      tone('triangle', 230, t, 0.1, 0.35, drumBus, 120);
+    }
+    if (dr === 'h') noise(t, 0.035, 0.16, drumBus, 'highpass', 8000);
+    if (s.hats16 && dr === '.') noise(t, 0.02, 0.07, drumBus, 'highpass', 9000);
   }
 
   function sched() {
