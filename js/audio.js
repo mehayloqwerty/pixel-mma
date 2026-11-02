@@ -319,13 +319,16 @@ const Sound = (() => {
   }
 
   // ---- Настоящие треки: Kevin MacLeod (incompetech.com), CC BY 4.0. Чиптюн — запасной вариант без сети.
+  // menu — Kevin MacLeod (incompetech.com, CC BY 4.0); остальное — Pixabay Content License
   const TRACKS = {
-    menu: 'Volatile Reaction', khabib: 'Five Armies', oliveira: 'Samba Isobel', jones: 'Hitman',
-    tyson: 'Movement Proposition', tsarukyan: 'Desert City', mcgregor: 'Celtic Impulse', adesanya: 'Rites',
-    poirier: 'Rollin at 5', ngannou: 'Killers', usyk: 'Crusade', pimblett: 'Cut and Run',
-    fight: 'Dark Aggressive Boom-Bap Beat',
+    menu: ['Volatile Reaction', 'Kevin MacLeod'],
+    khabib: ['Epic Orchestral Drums', 'Playsound'], oliveira: ['Brazilian Phonk', 'MondaMusic'],
+    jones: ['Aggressive Trap Beat', 'vaitsez'], tyson: ['Beat de Boom Bap Callejero', 'flakitogilbeatz'],
+    tsarukyan: ['Middle Eastern Music', '331music'], mcgregor: ['Celtic Bagpipe Rock', 'vjgalaxy'],
+    adesanya: ['Afro Trap x Guitar x Banger', '47643651'], poirier: ['Cinematic Action Rock Trailer Intro', 'Loka_music'],
+    ngannou: ['Epic Trailer', 'NastelBom'], usyk: ['Cossack Confluence', 'Rockot'],
+    pimblett: ['Punk Rock Rebellion Fast Energy', 'echoes_of_lumen'], fight: ['Dark Aggressive Boom-Bap Beat', 'PWLPL'],
   };
-  const AUTHOR = name => (name === 'fight' ? 'PWLPL (Pixabay)' : 'Kevin MacLeod');
   const player = new Audio();
   player.loop = true; player.preload = 'auto';
   let trackName = null;
@@ -420,7 +423,7 @@ const Sound = (() => {
 
   return {
     init, music, stopMusic, sfx, setMuted, say, hush,
-    title: name => (TRACKS[name] ? TRACKS[name] + ' — ' + AUTHOR(name) : TRACKS.menu + ' — Kevin MacLeod'),
+    title: name => { const t = TRACKS[name] || TRACKS.menu; return t[0] + ' — ' + t[1]; },
     credits: () => Object.values(TRACKS),
     get muted() { return muted; },
     set quiet(q) { quiet = q; },
