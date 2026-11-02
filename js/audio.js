@@ -348,13 +348,22 @@ const Sound = (() => {
   const hasTTS = 'speechSynthesis' in window;
   const pickVoice = () => { const v = speechSynthesis.getVoices(); ruVoice = v.find(x => /^ru/i.test(x.lang)) || null; };
   if (hasTTS) { pickVoice(); speechSynthesis.onvoiceschanged = pickVoice; }
+  // iPhone пускает голос только после касания — «разогреваем» его на нажатии кнопки
+  const keep = [];
+  function unlockVoice() {
+    if (!hasTTS) return;
+    try { speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(' '); u.volume = 0; speechSynthesis.speak(u); } catch (e) {}
+  }
   function say(text) {
     if (muted || quiet || !hasTTS) return;
+    if (!ruVoice) pickVoice();
     const u = new SpeechSynthesisUtterance(text);
     u.lang = 'ru-RU'; if (ruVoice) u.voice = ruVoice;
-    u.rate = 0.95; u.pitch = 0.55;
+    u.rate = 1; u.pitch = 0.7; u.volume = 1;
     u.onstart = () => { player.volume = trackVol() * 0.3; };
-    u.onend = () => { player.volume = trackVol(); };
+    u.onend = u.onerror = () => { player.volume = trackVol(); keep.splice(keep.indexOf(u), 1); };
+    keep.push(u); // иначе Safari выкидывает фразу на полуслове
+    if (speechSynthesis.paused) speechSynthesis.resume();
     speechSynthesis.speak(u);
   }
   function hush() { if (hasTTS) speechSynthesis.cancel(); player.volume = trackVol(); }
@@ -422,7 +431,7 @@ const Sound = (() => {
   });
 
   return {
-    init, music, stopMusic, sfx, setMuted, say, hush,
+    init, music, stopMusic, sfx, setMuted, say, hush, unlockVoice,
     title: name => { const t = TRACKS[name] || TRACKS.menu; return t[0] + ' — ' + t[1]; },
     credits: () => Object.values(TRACKS),
     get muted() { return muted; },

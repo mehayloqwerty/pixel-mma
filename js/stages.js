@@ -280,6 +280,8 @@ const STAGES = [
   },
 ];
 
+STAGES.length = 1; // оставлен только октагон
+
 const stageCache = {};
 function stageLayers(i) {
   if (stageCache[i]) return stageCache[i];

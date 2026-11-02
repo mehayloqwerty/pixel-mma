@@ -169,3 +169,9 @@ body:not(.portrait) .tb.p, body:not(.portrait) .tb.k { top: 53px; }
 .credits { font-size: 7px !important; color: #aaa; }
 #hud.walk .side, #hud.walk #clock, #hud.walk #pauseBtn, #hud.walk #fsBtn { opacity: 0; }
 #hud.walk::after { content: 'ЛЮБАЯ КНОПКА — ПРОПУСТИТЬ'; position: absolute; bottom: calc(var(--u) * 3); left: 0; right: 0; text-align: center; font-size: calc(var(--u) * 3.5); color: #ffffffaa; }
+#clinch { position: absolute; left: 50%; top: 30%; transform: translateX(-50%); text-align: center; width: calc(var(--u) * 120); }
+#clinch b { display: block; font-size: calc(var(--u) * 7); color: var(--yel); text-shadow: calc(var(--u) * .8) calc(var(--u) * .8) 0 var(--red); animation: blink .3s steps(2) infinite; margin-bottom: calc(var(--u) * 2); }
+#clinch .cl { display: flex; height: calc(var(--u) * 6); border: calc(var(--u) * 1) solid #000; background: #222; }
+#clinch .cl i { display: block; height: 100%; transition: width .08s; }
+#cl0 { background: #e8a512; } #cl1 { background: #3ab0ff; }
+#banner.long { font-size: calc(var(--u) * 7); padding: 0 calc(var(--u) * 4); line-height: 1.5; }

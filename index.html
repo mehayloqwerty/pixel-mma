@@ -14,11 +14,11 @@
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><text y='14' font-size='14'>🥊</text></svg>">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=1793653689">
+<link rel="stylesheet" href="style.css?v=1793655363">
 </head>
 <body>
 <div id="stage">
-  <canvas id="game" width="320" height="180"></canvas>
+  <canvas id="game" width="640" height="360"></canvas>
   <div id="hud" class="hidden">
     <div class="side l">
       <div class="nm" id="nm0"></div>
@@ -36,6 +36,7 @@
     <div id="banner"></div>
     <div class="sp" id="sp0"></div><div class="sp r" id="sp1"></div>
     <div class="cmb" id="cb0"></div><div class="cmb r" id="cb1"></div>
+    <div id="clinch" class="hidden"><b>КЛИНЧ! ЖМИ!</b><div class="cl"><i id="cl0"></i><i id="cl1"></i></div></div>
     <button id="pauseBtn" aria-label="Пауза">II</button>
     <button id="fsBtn" aria-label="Во весь экран">⛶</button>
   </div>
@@ -56,7 +57,7 @@
 <div class="screen" id="s-title">
   <h1 class="logo">PIXEL<br>MMA<span>ЛИГА БОЙЦОВ</span></h1>
   <p class="blink" id="titleHint">НАЖМИ, ЧТОБЫ НАЧАТЬ</p>
-  <p class="tiny">© 2000 · 11 БОЙЦОВ · 4 АРЕНЫ<br>МУЗЫКА: PIXABAY (АВТОРЫ — В «КАК ИГРАТЬ») · МЕНЮ: KEVIN MACLEOD, CC BY 4.0</p>
+  <p class="tiny">© 2000 · 11 БОЙЦОВ · ОКТАГОН<br>МУЗЫКА: PIXABAY (АВТОРЫ — В «КАК ИГРАТЬ») · МЕНЮ: KEVIN MACLEOD, CC BY 4.0</p>
 </div>
 
 <div class="screen hidden" id="s-menu">
@@ -91,7 +92,7 @@
 </div>
 
 <div class="screen hidden" id="s-setup">
-  <h2>АРЕНА</h2>
+  <h2 id="arenaTitle">АРЕНА</h2>
   <div id="arenas"></div>
   <h2>СЛОЖНОСТЬ БОТА</h2>
   <div id="diffs" class="row"></div>
@@ -169,7 +170,11 @@
     <p>Назад + рука — бэкфист с разворота</p>
     <p>Вперёд + нога — хай-кик · вниз + нога — лоу-кик</p>
     <p>Вниз-вперёд + нога — в корпус · назад + нога — вертуха</p>
-    <p>Вниз-вперёд + рука — хук в корпус</p>
+    <p>Вниз-вперёд + рука — в печень · вниз-назад + рука — джеб в корпус</p>
+    <p>Вниз-назад + нога — удар-топор сверху</p>
+    <p>Рука + нога вместе — сальто с ударом ногой</p>
+    <p>Вплотную: рука — локоть, нога — колено</p>
+    <p><b>КЛИНЧ</b>: стоите вплотную — долби кнопки! Кто быстрее, тот бросает через себя или проходит в ноги.</p>
     <p>Попал — сразу жми следующий удар, будет комбо.</p>
     <p><b>ЯРОСТЬ</b> копится от ударов. Полная — жми спешл!</p>
     <p>Душат или держат — быстро долби кнопки, чтобы вырваться.</p>
@@ -181,10 +186,10 @@
 </div>
 
 <script src="https://unpkg.com/mqtt@5.10.1/dist/mqtt.min.js"></script>
-<script src="js/audio.js?v=1793653689"></script>
-<script src="js/fighters.js?v=1793653689"></script>
-<script src="js/stages.js?v=1793653689"></script>
-<script src="js/game.js?v=1793653689"></script>
-<script src="js/ui.js?v=1793653689"></script>
+<script src="js/audio.js?v=1793655363"></script>
+<script src="js/fighters.js?v=1793655363"></script>
+<script src="js/stages.js?v=1793655363"></script>
+<script src="js/game.js?v=1793655363"></script>
+<script src="js/ui.js?v=1793655363"></script>
 </body>
 </html>

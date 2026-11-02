@@ -47,7 +47,7 @@ function startRound() {
       st: 'idle', t: 0, mv: null, mvId: null, inv: 0, stun: 0, combo: 0, gkind: null, flash: 0,
     });
   });
-  G.timer = ROUND_T; G.phase = 'intro'; G.phaseT = 0; G.winner = -1;
+  G.timer = ROUND_T; G.phase = 'intro'; G.phaseT = 0; G.winner = -1; G.clinch = null; G.closeT = 0;
 }
 
 // ---------- События (звук, искры, надписи) — на хосте ещё и уходят другу
@@ -62,6 +62,7 @@ function applyFx(e) {
     case 'sfx': Sound.sfx(e.n); break;
     case 'spark': spark(e.x, e.y, e.big, e.blk); break;
     case 'dust': dust(e.x); break;
+    case 'heart': for (let i = 0; i < 3; i++) G.parts.push({ x: e.x, y: e.y, vx: e.d * (0.6 + Math.random() * 0.8), vy: -0.4 - Math.random() * 0.6, l: 50, c: ['#ff4f8b', '#ff7aa8', '#ff2e63'][i], heart: 1 }); break;
     case 'shake': G.shake = Math.max(G.shake, e.v); break;
     case 'msg': if (!demo) UI.banner(e.text, e.big); break;
     case 'sp': if (!demo) UI.special(e.side, e.text); break;
@@ -94,14 +95,16 @@ function updateParts() {
 }
 
 // ---------- Ввод ударов
-function pickMove(f, btn, fwd, down, back) {
+function pickMove(f, btn, fwd, down, back, near) {
   if (btn === 'p') {
-    if (down) return fwd ? 'bodyHook' : 'upper';
+    if (down) return fwd ? 'bodyHook' : back ? 'bodyJab' : 'upper';
     if (back) return 'backfist';
+    if (near && !fwd) return 'elbowS';
     return fwd ? 'cross' : 'jab';
   }
-  if (down) return fwd ? 'bodyKick' : 'lowKick';
+  if (down) return fwd ? 'bodyKick' : back ? 'axeKick' : 'lowKick';
   if (back) return 'spinKick';
+  if (near && !fwd) return 'kneeS';
   return fwd ? 'highKick' : 'teep';
 }
 
@@ -132,9 +135,11 @@ function updFighter(f, o) {
   if (['idle', 'walk', 'crouch', 'block'].includes(f.st)) {
     if (Math.abs(o.x - f.x) > 1) f.face = o.x > f.x ? 1 : -1;
     const fwd = fwdOf(), bk = backOf();
+    const near = Math.abs(o.x - f.x) < 25 * D.scale;
     if (pr('s') && f.meter >= 100) startMove(f, D.special);
-    else if (pr('p')) startMove(f, pickMove(f, 'p', fwd, I.d, bk));
-    else if (pr('k')) startMove(f, pickMove(f, 'k', fwd, I.d, bk));
+    else if ((pr('p') && I.k) || (pr('k') && I.p)) startMove(f, 'flipKick');
+    else if (pr('p')) startMove(f, pickMove(f, 'p', fwd, I.d, bk, near));
+    else if (pr('k')) startMove(f, pickMove(f, 'k', fwd, I.d, bk, near));
     else if (I.b) { setSt(f, 'block'); f.crouchB = !!I.d; }
     else if (I.u) {
       f.st = 'jump'; f.t = 0; f.vy = -4.7; f.airUsed = false;
@@ -152,7 +157,9 @@ function updFighter(f, o) {
     f.mvT += D.spd;
     if (inLunge(f)) f.vx = m.lunge[2] * f.face;
     if (m.jump && t0 < m.jump[0] && f.mvT >= m.jump[0]) f.vy = m.jump[1];
-    if (m.chain && f.mvT >= m.chain.at && pr(m.chain.btn) && !I.d && !backOf()) startMove(f, m.chain.to);
+    // рука и нога почти одновременно — сальто
+    if (f.mvT < 6 && m.cat !== 's' && !m.air && ((m.cat === 'p' && pr('k')) || (m.cat === 'k' && pr('p'))) && f.mvId !== 'flipKick') startMove(f, 'flipKick');
+    else if (m.chain && f.mvT >= m.chain.at && pr(m.chain.btn) && !I.d && !backOf()) startMove(f, m.chain.to);
     else if (f.landed && m.cancel && f.mvT >= m.cancel) {
       const fwd = fwdOf(), bk = backOf();
       if (pr('s') && f.meter >= 100) startMove(f, D.special);
@@ -170,10 +177,15 @@ function updFighter(f, o) {
   } else if (f.st === 'grab') {
     updGrab(f, o);
   } else if (f.st === 'held') {
-    if (pr('p') || pr('k') || pr('s') || pr('b')) f.mash++;
+    // нажатия друга по сети считаются отдельно (пачкой), здесь — только свои
+    const remote = G.mode === 'host' && f.side === 1;
+    if (!remote && (pr('p') || pr('k') || pr('s') || pr('b'))) f.mash++;
+  } else if (f.st === 'clinch') {
+    const remote = G.mode === 'host' && f.side === 1;
+    if (G.clinch && !remote && (pr('p') || pr('k') || pr('s') || pr('b'))) G.clinch.n[f.side]++;
   }
 
-  if (f.st !== 'held' && f.st !== 'grab') {
+  if (f.st !== 'held' && f.st !== 'grab' && f.st !== 'clinch') {
     if (f.y < GROUND || f.vy < 0) {
       f.vy += 0.25; f.y += f.vy;
       if (f.y >= GROUND) { f.y = GROUND; f.vy = 0; land(f); }
@@ -191,7 +203,7 @@ function land(f) {
 }
 
 // ---------- Попадания
-const canBeHit = d => !['down', 'ko', 'held', 'grab'].includes(d.st) && d.inv <= 0;
+const canBeHit = d => !['down', 'ko', 'held', 'grab', 'clinch'].includes(d.st) && d.inv <= 0;
 
 function hurt(d, pt) {
   if (!canBeHit(d)) return false;
@@ -272,15 +284,37 @@ function beginGrab(a, d, kind) {
     placePair(a, d, 6);
     d.hp -= 6; d.flash = 4;
     emit({ k: 'sfx', n: 'heavy' }); emit({ k: 'shake', v: 6 }); emit({ k: 'dust', x: d.x });
+  } else if (kind === 'td') {
+    placePair(a, d, 6);
+  } else if (kind === 'throw') {
+    placePair(a, d, 16);
+    emit({ k: 'sfx', n: 'grab' });
   } else {
     placePair(a, d, 26 * a.def.scale);
     emit({ k: 'sfx', n: 'grab' });
   }
-  a.meter = 0;
 }
 
 function updGrab(a, d) {
-  a.gt++;
+  a.gt++; d.gt = a.gt;
+  if (a.gkind === 'td') {
+    if (a.gt === 1) { d.hp -= 10; d.flash = 4; emit({ k: 'sfx', n: 'heavy' }); emit({ k: 'shake', v: 6 }); emit({ k: 'dust', x: d.x }); }
+    if (d.hp <= 0) { d.hp = 0; endGrab(a, d, true); return; }
+    if (a.gt >= 40) endGrab(a, d, false);
+    return;
+  }
+  if (a.gkind === 'throw') {
+    const th = Math.PI * Math.min(1, a.gt / 26);
+    d.x = clamp(a.x + a.face * 16 * Math.cos(th), MINX, MAXX);
+    d.y = GROUND - 30 * Math.sin(th);
+    if (a.gt === 26) {
+      d.y = GROUND; d.hp -= 13; d.flash = 4;
+      emit({ k: 'sfx', n: 'heavy' }); emit({ k: 'shake', v: 8 }); emit({ k: 'dust', x: d.x });
+      if (d.hp <= 0) { d.hp = 0; endGrab(a, d, true); return; }
+    }
+    if (a.gt >= 40) { endGrab(a, d, false); a.face = -a.face; }
+    return;
+  }
   if (a.gkind === 'gnp') {
     const HITS = 6, START = 20, CYC = 12, k = a.gt - START;
     if (k >= 0 && k % CYC === 6 && k / CYC < HITS) {
@@ -313,13 +347,14 @@ function endGrab(a, d, ko) {
   a.st = 'idle'; a.t = 0; a.inv = 10; a.gkind = null;
   d.gkind = null;
   d.st = ko ? 'ko' : 'down';
-  d.t = was === 'gnp' ? 12 : 0;
+  d.t = was === 'gnp' || was === 'td' || was === 'throw' ? 12 : 0;
   d.downDur = was === 'gnp' ? 60 : 75;
+  d.y = GROUND;
   if (was !== 'gnp') emit({ k: 'dust', x: d.x });
 }
 
 function separate(a, b) {
-  const lying = s => ['held', 'grab', 'down', 'ko'].includes(s);
+  const lying = s => ['held', 'grab', 'down', 'ko', 'clinch'].includes(s);
   if (lying(a.st) || lying(b.st)) return;
   const minD = 11 * (a.def.bulk * a.def.scale + b.def.bulk * b.def.scale);
   const dx = b.x - a.x;
@@ -330,6 +365,40 @@ function separate(a, b) {
     if (b.x < MINX) { a.x += MINX - b.x; b.x = MINX; }
     if (a.x > MAXX) { b.x -= a.x - MAXX; a.x = MAXX; }
     if (b.x > MAXX) { a.x -= b.x - MAXX; b.x = MAXX; }
+  }
+}
+
+// ---------- Клинч: стоят вплотную — кто быстрее жмёт, тот бросает или проходит в ноги
+const CLINCH_T = 150, CLINCH_WIN = 18;
+function clinchLogic(a, b) {
+  const g = G;
+  if (g.phase !== 'fight') { g.closeT = 0; return; }
+  if (g.clinch) {
+    g.clinch.t++;
+    a.t++; b.t++;
+    const [n0, n1] = g.clinch.n;
+    if (g.clinch.t >= CLINCH_T || n0 >= CLINCH_WIN || n1 >= CLINCH_WIN) {
+      const w = n0 > n1 ? 0 : n1 > n0 ? 1 : (Math.random() < 0.5 ? 0 : 1);
+      const W = g.f[w], L = g.f[1 - w];
+      const kind = Math.random() < W.def.stats.grap / 14 ? 'td' : 'throw';
+      g.clinch = null; g.closeT = -120;
+      W.st = 'idle'; L.st = 'idle';
+      beginGrab(W, L, kind);
+      emit({ k: 'msg', text: kind === 'td' ? 'ПРОХОД В НОГИ!' : 'БРОСОК ЧЕРЕЗ СЕБЯ!', big: 0 });
+    }
+    return;
+  }
+  const free = f => ['idle', 'walk', 'block', 'crouch'].includes(f.st) && f.y >= GROUND;
+  const minD = 11 * (a.def.bulk * a.def.scale + b.def.bulk * b.def.scale);
+  if (free(a) && free(b) && Math.abs(a.x - b.x) < minD + 4) g.closeT = (g.closeT || 0) + 1;
+  else if ((g.closeT || 0) > 0) g.closeT = 0; else g.closeT = Math.min(0, (g.closeT || 0) + 1);
+  if (g.closeT > 50) {
+    g.clinch = { t: 0, n: [0, 0] };
+    const mid = (a.x + b.x) / 2, d = a.x <= b.x ? 1 : -1;
+    Object.assign(a, { st: 'clinch', t: 0, mv: null, mvId: null, face: d, x: mid - d * 9, vx: 0 });
+    Object.assign(b, { st: 'clinch', t: 0, mv: null, mvId: null, face: -d, x: mid + d * 9, vx: 0 });
+    emit({ k: 'msg', text: 'КЛИНЧ! ЖМИ БЫСТРЕЕ!' });
+    emit({ k: 'sfx', n: 'grab' });
   }
 }
 
@@ -347,6 +416,7 @@ function aiInput(me, op, ai) {
   const F = dx > 0 ? 'r' : 'l', B = dx > 0 ? 'l' : 'r';
   const R = Math.random;
   if (me.st === 'held') { if (R() < P.react * 0.35) I[R() < 0.5 ? 'p' : 'k'] = 1; return I; }
+  if (me.st === 'clinch') { if (R() < [0.16, 0.26, 0.38][ai.diff]) I[R() < 0.5 ? 'p' : 'k'] = 1; return I; }
   if (['down', 'ko', 'hit', 'grab', 'win'].includes(me.st)) return I;
   if (op.st === 'attack' && op.atkSeq !== ai.lastSeq) {
     ai.lastSeq = op.atkSeq;
@@ -375,7 +445,9 @@ function aiInput(me, op, ai) {
     const spOK = grabber ? dist <= 28 * m.scale : dist <= 50;
     if (me.meter >= 100 && spOK && R() < P.sp) { I.s = 1; return I; }
     const r = R(), v = R();
-    if (v < 0.35) {} else if (v < 0.6) I[F] = 1; else if (v < 0.78) I.d = 1; else if (v < 0.88) { I.d = 1; I[F] = 1; } else I[B] = 1;
+    if (r < 0.04) { I.p = 1; I.k = 1; return I; }
+    if (v < 0.32) {} else if (v < 0.55) I[F] = 1; else if (v < 0.72) I.d = 1; else if (v < 0.82) { I.d = 1; I[F] = 1; }
+    else if (v < 0.9) { I.d = 1; I[B] = 1; } else I[B] = 1;
     I[r < 0.5 ? 'p' : 'k'] = 1;
     return I;
   }
@@ -404,8 +476,10 @@ function getPose(f) {
       }
       return POSE.down;
     }
-    case 'held': return f.gkind === 'gnp' ? POSE.down : POSE.guillo;
+    case 'held': return f.gkind === 'gnp' || f.gkind === 'td' ? POSE.down : f.gkind === 'throw' ? POSE.hit : POSE.guillo;
     case 'grab': {
+      if (f.gkind === 'td') return f.gt < 10 ? lerpPose(POSE.shoot, POSE.mount, f.gt / 10) : POSE.mount;
+      if (f.gkind === 'throw') return f.gt < 26 ? lerpPose(POSE.clinch, POSE.suplex, f.gt / 12) : lerpPose(POSE.suplex, POSE.idle, (f.gt - 26) / 14);
       if (f.gkind === 'gnp') {
         const k = f.gt - 20;
         if (k < 0) return lerpPose(POSE.shoot, POSE.mount, f.gt / 10);
@@ -418,6 +492,8 @@ function getPose(f) {
       return p;
     }
     case 'win': return lerpPose(POSE.win, POSE.win2, (Math.sin(f.t * 0.15) + 1) / 2);
+    case 'taunt': return tauntOf(f).p;
+    case 'clinch': { const p = POSE.clinch.slice(); p[3] += Math.sin(f.t * 0.6); p[1] += Math.sin(f.t * 0.4) * 0.5; return p; }
   }
   return POSE.idle;
 }
@@ -429,11 +505,40 @@ function drawFace(f) {
 }
 
 // ---------- Выход бойцов и ведущий
-const WALK_END = 480;
+const WALK_END = 520;
 function annState(T) {
-  if (T >= 410) return { x: 160 + (T - 410) * 1.6, face: 1, pose: lerpPose(POSE.walk1, POSE.walk2, (Math.sin(T * 0.28) + 1) / 2) };
+  if (T >= 445) return { x: 160 + (T - 445) * 1.6, face: 1, pose: lerpPose(POSE.walk1, POSE.walk2, (Math.sin(T * 0.28) + 1) / 2) };
   const p = POSE.annL.slice(); p[3] += Math.sin(T * 0.1);
-  return { x: 160, face: T < 230 ? 1 : -1, pose: p };
+  return { x: 160, face: T < 245 ? 1 : -1, pose: p };
+}
+
+// фирменный номер каждого бойца при выходе (t от 0 до 70)
+const wave = (t, sp) => (Math.sin(t * sp) + 1) / 2;
+const TAUNT = {
+  khabib: t => ({ p: lerpPose(POSE.idle, POSE.pray, Math.min(1, t / 12)) }),
+  oliveira: t => ({ p: t < 12 ? lerpPose(POSE.idle, POSE.heart, t / 12) : t < 45 ? POSE.heart : lerpPose(POSE.kiss1, POSE.kiss2, wave(t, 0.25)) }),
+  jones: t => ({ p: lerpPose(POSE.chest, POSE.idle, wave(t, 0.5)) }),
+  tyson: t => ({ p: keyPose([[0,'idle'],[3,'jab'],[6,'idle'],[9,'cross'],[12,'idle'],[15,'hook'],[18,'idle']], t % 18) }),
+  tsarukyan: t => {
+    if (t < 10) return { p: lerpPose(POSE.idle, POSE.crouch, t / 10) };
+    if (t < 36) { const k = (t - 10) / 26; return { p: POSE.jump, dy: -Math.sin(k * Math.PI) * 34, rot: -k * Math.PI * 2 }; }
+    if (t < 44) return { p: lerpPose(POSE.crouch, POSE.idle, (t - 36) / 8) };
+    return { p: lerpPose(POSE.win, POSE.win2, wave(t, 0.2)) };
+  },
+  mcgregor: t => { const p = POSE.strut.slice(); p[1] -= wave(t, 0.3); p[3] -= wave(t, 0.3); return { p }; },
+  adesanya: t => ({ p: lerpPose(POSE.dance1, POSE.dance2, wave(t, 0.22)) }),
+  poirier: t => ({ p: lerpPose(POSE.win, POSE.win2, wave(t, 0.3)) }),
+  ngannou: t => ({ p: lerpPose(POSE.idle, POSE.flex, Math.min(1, t / 10)), dy: t > 10 ? -wave(t, 0.4) : 0 }),
+  usyk: t => ({ p: lerpPose(POSE.hopak1, POSE.hopak2, wave(t, 0.35)) }),
+  pimblett: t => ({ p: lerpPose(POSE.kiss1, POSE.kiss2, wave(t, 0.22)) }),
+};
+const tauntOf = f => (TAUNT[f.id] || TAUNT.poirier)(f.t);
+function poseExtra(f) {
+  if (f.st === 'taunt') { const r = tauntOf(f); return { dy: r.dy || 0, rot: r.rot || 0 }; }
+  if (f.st === 'attack' && f.mv && f.mv.spin && f.mvT >= f.mv.spin[0] && f.mvT < f.mv.spin[1])
+    return { dy: 0, rot: ((f.mvT - f.mv.spin[0]) / (f.mv.spin[1] - f.mv.spin[0])) * Math.PI * 2 };
+  if (f.st === 'held' && f.gkind === 'throw') return { dy: 0, rot: -Math.PI * Math.min(1, f.gt / 26) };
+  return { dy: 0, rot: 0 };
 }
 
 function walkout() {
@@ -448,6 +553,7 @@ function walkout() {
     if (Math.abs(x - f.x) > 1.3) { if (f.st !== 'walk') { f.st = 'walk'; f.t = 0; } f.face = d; f.x += d * 1.2; }
     else if (f.st === 'walk') { f.x = x; f.st = 'idle'; f.t = 0; }
   };
+  const kissy = f => (f.id === 'pimblett' || f.id === 'oliveira') && f.st === 'taunt' && f.t > 20 && f.t % 12 === 0;
   const ia = INTRO[a.id] || ['', a.def.name], ib = INTRO[b.id] || ['', b.def.name];
   if (T === 1) {
     emit({ k: 'msg', text: 'ДАМЫ И ГОСПОДА!' });
@@ -460,24 +566,26 @@ function walkout() {
     emit({ k: 'say', text: 'В красном углу! ' + ia[0] + '! ' + ia[1] + '!' });
   }
   if (T >= 50 && T < 170) walkTo(a, 108);
-  if (T === 170) { a.x = 108; a.st = 'win'; a.t = 0; emit({ k: 'msg', text: a.def.name + ' «' + a.def.nick.toUpperCase() + '»', big: 0 }); emit({ k: 'sfx', n: 'crowd' }); }
-  if (T === 225) { a.st = 'idle'; a.face = 1; a.t = 0; }
-  if (T === 230) {
+  if (T === 170) { a.x = 108; a.face = 1; a.st = 'taunt'; a.t = 0; emit({ k: 'msg', text: a.def.name + ' «' + a.def.nick.toUpperCase() + '»' }); emit({ k: 'sfx', n: 'crowd' }); }
+  if (kissy(a)) emit({ k: 'heart', x: a.x + 12, y: a.y - 56, d: 1 });
+  if (T === 240) { a.st = 'idle'; a.face = 1; a.t = 0; }
+  if (T === 245) {
     emit({ k: 'music', n: b.id });
     emit({ k: 'msg', text: 'В СИНЕМ УГЛУ' });
     emit({ k: 'say', text: 'В синем углу! ' + ib[0] + '! ' + ib[1] + '!' });
   }
-  if (T >= 230 && T < 350) walkTo(b, 212);
-  if (T === 350) { b.x = 212; b.st = 'win'; b.t = 0; emit({ k: 'msg', text: b.def.name + ' «' + b.def.nick.toUpperCase() + '»' }); emit({ k: 'sfx', n: 'crowd' }); }
-  if (T === 405) { b.st = 'idle'; b.face = -1; b.t = 0; }
-  if (T === 410) { emit({ k: 'msg', text: 'ДА НАЧНЁТСЯ БИТВА!' }); emit({ k: 'say', text: 'Да начнётся битва!' }); }
+  if (T >= 245 && T < 365) walkTo(b, 212);
+  if (T === 365) { b.x = 212; b.face = -1; b.st = 'taunt'; b.t = 0; emit({ k: 'msg', text: b.def.name + ' «' + b.def.nick.toUpperCase() + '»' }); emit({ k: 'sfx', n: 'crowd' }); }
+  if (kissy(b)) emit({ k: 'heart', x: b.x - 12, y: b.y - 56, d: -1 });
+  if (T === 435) { b.st = 'idle'; b.face = -1; b.t = 0; }
+  if (T === 445) { emit({ k: 'msg', text: 'ДА НАЧНЁТСЯ БИТВА!' }); emit({ k: 'say', text: 'Да начнётся битва!' }); }
   if (T >= WALK_END) endWalkout();
 }
 
 function endWalkout() {
   const [a, b] = G.f;
-  Object.assign(a, { x: 108, face: 1, st: 'idle', t: 0 });
-  Object.assign(b, { x: 212, face: -1, st: 'idle', t: 0 });
+  Object.assign(a, { x: 108, y: GROUND, face: 1, st: 'idle', t: 0 });
+  Object.assign(b, { x: 212, y: GROUND, face: -1, st: 'idle', t: 0 });
   emit({ k: 'hush' });
   emit({ k: 'music', n: 'fight' });
   G.phase = 'intro'; G.phaseT = 0;
@@ -539,6 +647,7 @@ function step() {
   updFighter(a, b); updFighter(b, a);
   checkHits(a, b); checkHits(b, a);
   separate(a, b);
+  clinchLogic(a, b);
   a.prev = a.inp; b.prev = b.inp;
   if (g.phase !== 'over') phaseLogic();
   updateParts();
@@ -552,7 +661,8 @@ const snapF = f => [Math.round(f.x * 10) / 10, Math.round(f.y * 10) / 10, f.face
 
 function applySnapF(f, s) {
   let mv, gk, cb;
-  [f.x, f.y, f.face, f.hp, f.meter, f.st, mv, f.mvT, f.t, gk, f.gt, f.flash, f.downDur, cb] = s;
+  [f.tx, f.ty, f.face, f.hp, f.meter, f.st, mv, f.mvT, f.t, gk, f.gt, f.flash, f.downDur, cb] = s;
+  if (f.x === undefined || Math.abs(f.tx - f.x) > 60) { f.x = f.tx; f.y = f.ty; }
   f.mvId = mv || null; f.mv = mv ? MOVES[mv] : null; f.gkind = gk || null; f.crouchB = !!cb;
 }
 
@@ -560,10 +670,15 @@ function netSend(o) { try { if (Net.conn && Net.conn.open) Net.conn.send(o); } c
 
 function onNetData(d) {
   if (!d || !d.t) return;
-  if (d.t === 'i' && G && G.mode === 'host') { Net.guestSeen = true; G.remoteHeld = d.v; G.remoteLatch |= d.v; }
+  if (d.t === 'i' && G && G.mode === 'host') {
+    Net.guestSeen = true; G.remoteHeld = d.v; G.remoteLatch |= d.v | (d.l || 0);
+    const b = G.f[1];
+    if (d.c && G.clinch && b.st === 'clinch') G.clinch.n[1] += d.c;
+    if (d.c && b.st === 'held') b.mash += d.c;
+  }
   else if (d.t === 's' && G && G.mode === 'guest') {
     applySnapF(G.f[0], d.a); applySnapF(G.f[1], d.b);
-    G.timer = d.tm; G.round = d.rd; G.wins = d.w; G.phase = d.ph; G.phaseT = d.pt;
+    G.timer = d.tm; G.round = d.rd; G.wins = d.w; G.phase = d.ph; G.phaseT = d.pt; G.clinch = d.cl ? { n: [d.cl[0], d.cl[1]], t: d.cl[2] } : null;
     d.fx.forEach(applyFx);
   } else UI.onNet(d);
 }
@@ -582,27 +697,40 @@ function tick() {
   if (online && Net.lastRx && performance.now() - Net.lastRx > 12000) { UI.netLost(); return; }
   Net.tick = (Net.tick || 0) + 1;
   if (G.mode === 'guest') {
-    // кнопки шлём при изменении и раз в 6 кадров для надёжности
-    const v = encIn(Input.read());
-    if (v !== Net.lastIn || Net.tick % 6 === 0) { netSend({ t: 'i', v }); Net.lastIn = v; }
+    // копим нажатия и шлём пачкой раз в 7 кадров: сервер пропускает ~10 сообщений в секунду
+    const I = Input.read(), v = encIn(I);
+    const edges = v & ~(Net.lastIn || 0);
+    Net.latch = (Net.latch || 0) | v;
+    Net.count = (Net.count || 0) + ((edges & 0xF0) ? 1 : 0);
+    Net.lastIn = v;
+    if (Net.tick % 7 === 0) { netSend({ t: 'i', v, l: Net.latch, c: Net.count }); Net.latch = 0; Net.count = 0; }
+    // между пакетами двигаем бойцов сами — без рывков
+    for (const f of G.f) {
+      f.t++;
+      if (f.st === 'attack' && f.mv) f.mvT += f.def.spd;
+      if (f.tx !== undefined) { f.x += (f.tx - f.x) * 0.3; f.y += (f.ty - f.y) * 0.3; }
+    }
     updateParts();
     return;
   }
   if (paused) return;
   step();
-  if (G.mode === 'host' && Net.tick % 2 === 0) {
-    netSend({ t: 's', a: snapF(G.f[0]), b: snapF(G.f[1]), tm: G.timer, rd: G.round, w: G.wins, ph: G.phase, pt: G.phaseT, fx: G.fx });
+  if (G.mode === 'host' && Net.tick % 7 === 0) {
+    netSend({ t: 's', a: snapF(G.f[0]), b: snapF(G.f[1]), tm: G.timer, rd: G.round, w: G.wins, ph: G.phase, pt: G.phaseT, cl: G.clinch ? [G.clinch.n[0], G.clinch.n[1], G.clinch.t] : 0, fx: G.fx });
     G.fx = [];
   }
 }
 
+const RS = 2; // бойцы рисуются в двойном разрешении — 128+ пикселей ростом
 function render(now) {
   const c = ctx;
-  c.save();
+  let sx = 0, sy = 0;
   if (G && G.shake > 0) {
-    c.translate(Math.round((Math.random() - 0.5) * G.shake), Math.round((Math.random() - 0.5) * G.shake));
+    sx = Math.round((Math.random() - 0.5) * G.shake) * RS; sy = Math.round((Math.random() - 0.5) * G.shake) * RS;
     G.shake *= 0.85; if (G.shake < 0.5) G.shake = 0;
   }
+  c.save();
+  c.setTransform(RS, 0, 0, RS, sx, sy);
   const si = G ? G.stage : menuStage;
   drawStageBack(c, si, now);
   if (G) {
@@ -616,12 +744,18 @@ function render(now) {
     if (G.phase === 'walkout') {
       const A = annState(G.phaseT);
       c.fillStyle = 'rgba(0,0,0,0.35)'; c.fillRect(Math.round(A.x) - 10, GROUND - 1, 20, 2);
-      drawFighter(c, ANNOUNCER, A.pose, A.x, GROUND, A.face, { mic: true });
+      c.setTransform(1, 0, 0, 1, sx, sy);
+      drawFighter(c, ANNOUNCER, A.pose, A.x * RS, GROUND * RS, A.face, { mic: true, k: RS });
+      c.setTransform(RS, 0, 0, RS, sx, sy);
     }
     const pri = f => (['held', 'down', 'ko'].includes(f.st) ? 0 : ['attack', 'grab'].includes(f.st) ? 2 : 1);
+    c.setTransform(1, 0, 0, 1, sx, sy);
     [...G.f].sort((p, q) => pri(p) - pri(q)).forEach(f => {
-      drawFighter(c, f.def, getPose(f), f.x, f.y, drawFace(f), { flash: f.flash > 0, hat: f.st === 'win' });
+      const ex = poseExtra(f);
+      drawFighter(c, f.def, getPose(f), f.x * RS, (f.y + ex.dy) * RS, drawFace(f),
+        { flash: f.flash > 0, hat: f.st === 'win' || (f.st === 'taunt' && f.id === 'khabib'), k: RS, rot: ex.rot });
     });
+    c.setTransform(RS, 0, 0, RS, sx, sy);
     for (const p of G.parts) {
       c.fillStyle = p.c;
       if (p.star) {
@@ -629,6 +763,9 @@ function render(now) {
         c.fillRect(Math.round(p.x - r), Math.round(p.y), r * 2 + 1, 1);
         c.fillRect(Math.round(p.x), Math.round(p.y - r), 1, r * 2 + 1);
         c.fillRect(Math.round(p.x - 1), Math.round(p.y - 1), 3, 3);
+      } else if (p.heart) {
+        const hx = Math.round(p.x), hy = Math.round(p.y);
+        c.fillRect(hx - 2, hy - 1, 2, 2); c.fillRect(hx + 1, hy - 1, 2, 2); c.fillRect(hx - 2, hy, 5, 2); c.fillRect(hx - 1, hy + 2, 3, 1); c.fillRect(hx, hy + 3, 1, 1);
       } else c.fillRect(Math.round(p.x), Math.round(p.y), p.l > 8 ? 2 : 1, p.l > 8 ? 2 : 1);
     }
   }
@@ -650,6 +787,6 @@ function startDemo() {
   const a = ids[Math.random() * ids.length | 0];
   let b = ids[Math.random() * ids.length | 0];
   if (b === a) b = ids[(ids.indexOf(a) + 3) % ids.length];
-  menuStage = Math.random() * STAGES.length | 0;
+  menuStage = 0;
   newMatch({ mode: 'demo', p1: a, p2: b, stage: menuStage, diff: 1 });
 }

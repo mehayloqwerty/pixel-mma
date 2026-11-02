@@ -196,10 +196,16 @@ function buildSetup() {
     b.onclick = () => { Flow.stage = i; refreshSetup(); Sound.sfx('select'); };
     ar.appendChild(b);
   });
+  $('arenas').classList.add('hidden'); $('arenaTitle').classList.add('hidden');
+  Flow.stage = 0;
+  if (STAGES.length < 2) return buildDiffs();
   const rnd = document.createElement('button'); rnd.className = 'arena rnd';
   rnd.innerHTML = '<div class="q">?</div><span>СЛУЧАЙНАЯ</span>';
   rnd.onclick = () => { Flow.stage = -1; refreshSetup(); Sound.sfx('select'); };
   ar.appendChild(rnd);
+  buildDiffs();
+}
+function buildDiffs() {
   ['ЛЁГКИЙ', 'БОЕЦ', 'ЧЕМПИОН'].forEach((t, i) => {
     const b = document.createElement('button'); b.textContent = t; b.className = 'diff';
     b.onclick = () => { Flow.diff = i; refreshSetup(); Sound.sfx('select'); };
@@ -224,11 +230,12 @@ function startFight(o) {
   const me = o.mode === 'guest' ? 1 : 0, online = o.mode !== 'bot';
   [0, 1].forEach(i => { $('nm' + i).textContent = G.f[i].def.name + (online && i === me ? ' ★ТЫ' : ''); });
   goFullscreen();
+  Sound.unlockVoice();
 }
 
 function botFight() {
   Flow.mode = 'bot';
-  const stage = Flow.stage < 0 ? Math.random() * STAGES.length | 0 : Flow.stage;
+  const stage = 0;
   saveFlow();
   startFight({ mode: 'bot', p1: Flow.p1, p2: Flow.p2, stage, diff: Flow.diff });
 }
@@ -276,7 +283,7 @@ function hostRoom() {
 }
 
 function hostStart() {
-  const stage = Math.random() * STAGES.length | 0;
+  const stage = 0;
   Net.lastStart = { t: 'start', p1: Flow.p1, p2: Flow.p2, stage };
   Net.guestSeen = false;
   netSend(Net.lastStart);
@@ -328,7 +335,7 @@ const UI = {
     b.textContent = text;
     b.className = '';
     void b.offsetWidth;
-    b.className = big ? 'show big' : 'show';
+    b.className = big ? 'show big' : text.length > 13 ? 'show long' : 'show';
   },
   special(side, text) {
     const e = $('sp' + side);
@@ -355,6 +362,12 @@ const UI = {
     });
     $('clock').textContent = Math.ceil(g.timer / 60);
     $('hud').classList.toggle('walk', g.phase === 'walkout');
+    $('clinch').classList.toggle('hidden', !g.clinch);
+    if (g.clinch) {
+      const [a, b] = g.clinch.n, sum = a + b || 1;
+      $('cl0').style.width = (a + b ? a / sum * 100 : 50) + '%';
+      $('cl1').style.width = (a + b ? b / sum * 100 : 50) + '%';
+    }
   },
   matchOver(w) {
     const me = G.mode === 'guest' ? 1 : 0;
