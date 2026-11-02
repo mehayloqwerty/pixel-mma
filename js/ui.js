@@ -124,10 +124,11 @@ function buildGrid() {
     const card = document.createElement('button');
     card.className = 'card';
     const c = document.createElement('canvas');
-    c.width = 40; c.height = 40;
+    c.width = 60; c.height = 60;
     const x = c.getContext('2d'); x.imageSmoothingEnabled = false;
-    x.fillStyle = '#1b1830'; x.fillRect(0, 0, 40, 40);
-    drawFighter(x, f, POSE.idle, 17, 40 + 50 * f.scale - 50 + 26, 1, {});
+    x.fillStyle = '#1b1830'; x.fillRect(0, 0, 60, 60);
+    const spr = renderSprite(f, POSE.idle, {});
+    x.drawImage(spr, SPR.OX - 26, SPR.OY - 132 * f.scale, 60, 60, 0, 0, 60, 60);
     card.appendChild(c);
     const n = document.createElement('span'); n.textContent = f.name; card.appendChild(n);
     card.onclick = () => { if (selIdx === i) $('selOk').click(); else pickCard(i); };
@@ -175,12 +176,12 @@ function drawPreview() {
     pose = keyPose(p.mv.keys, p.mvT);
     if (p.mvT >= p.mv.len) { p.mv = null; p.t = 0; }
   } else pose = lerpPose(POSE.idle, POSE.idle2, (Math.sin(p.t * 0.09) + 1) / 2);
-  const g = c.createLinearGradient(0, 0, 0, 84);
+  const g = c.createLinearGradient(0, 0, 0, 160);
   g.addColorStop(0, '#0d0b1c'); g.addColorStop(1, '#2a1f3f');
-  c.fillStyle = g; c.fillRect(0, 0, 96, 84);
-  c.fillStyle = '#3a2f55'; c.fillRect(0, 78, 96, 6);
-  c.fillStyle = 'rgba(0,0,0,.4)'; c.fillRect(30, 77, 26, 2);
-  drawFighter(c, p.def, pose, 40, 78, 1, {});
+  c.fillStyle = g; c.fillRect(0, 0, 150, 160);
+  c.fillStyle = '#3a2f55'; c.fillRect(0, 152, 150, 8);
+  c.fillStyle = 'rgba(0,0,0,.4)'; c.fillRect(48, 151, 40, 2);
+  drawFighterHD(c, p.def, pose, 62, 152, 1, {});
 }
 
 // ---------- Настройка боя с ботом

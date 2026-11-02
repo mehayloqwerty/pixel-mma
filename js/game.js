@@ -501,6 +501,9 @@ function getPose(f) {
 function drawFace(f) {
   const m = f.mv;
   if (f.st === 'attack' && m && m.flip && f.mvT >= m.flip[0] && f.mvT < m.flip[1]) return -f.face;
+  // вертушка: боец крутится вокруг себя — быстро разворачиваем спрайт туда-обратно
+  if (f.st === 'attack' && m && m.spinAir && f.mvT >= m.spinAir[0] && f.mvT < m.spinAir[1])
+    return Math.floor((f.mvT - m.spinAir[0]) / 3) % 2 ? -f.face : f.face;
   return f.face;
 }
 
@@ -535,6 +538,8 @@ const TAUNT = {
 const tauntOf = f => (TAUNT[f.id] || TAUNT.poirier)(f.t);
 function poseExtra(f) {
   if (f.st === 'taunt') { const r = tauntOf(f); return { dy: r.dy || 0, rot: r.rot || 0 }; }
+  if (f.st === 'attack' && f.mv && f.mv.spinAir && f.mvT >= f.mv.spinAir[0] && f.mvT < f.mv.spinAir[1])
+    return { dy: 0, rot: Math.sin((f.mvT - f.mv.spinAir[0]) * 0.55) * 0.35 };
   if (f.st === 'attack' && f.mv && f.mv.spin && f.mvT >= f.mv.spin[0] && f.mvT < f.mv.spin[1])
     return { dy: 0, rot: ((f.mvT - f.mv.spin[0]) / (f.mv.spin[1] - f.mv.spin[0])) * Math.PI * 2 };
   if (f.st === 'held' && f.gkind === 'throw') return { dy: 0, rot: -Math.PI * Math.min(1, f.gt / 26) };
@@ -745,15 +750,15 @@ function render(now) {
       const A = annState(G.phaseT);
       c.fillStyle = 'rgba(0,0,0,0.35)'; c.fillRect(Math.round(A.x) - 10, GROUND - 1, 20, 2);
       c.setTransform(1, 0, 0, 1, sx, sy);
-      drawFighter(c, ANNOUNCER, A.pose, A.x * RS, GROUND * RS, A.face, { mic: true, k: RS });
+      drawFighterHD(c, ANNOUNCER, A.pose, A.x * RS, GROUND * RS, A.face, { mic: true });
       c.setTransform(RS, 0, 0, RS, sx, sy);
     }
     const pri = f => (['held', 'down', 'ko'].includes(f.st) ? 0 : ['attack', 'grab'].includes(f.st) ? 2 : 1);
     c.setTransform(1, 0, 0, 1, sx, sy);
     [...G.f].sort((p, q) => pri(p) - pri(q)).forEach(f => {
       const ex = poseExtra(f);
-      drawFighter(c, f.def, getPose(f), f.x * RS, (f.y + ex.dy) * RS, drawFace(f),
-        { flash: f.flash > 0, hat: f.st === 'win' || (f.st === 'taunt' && f.id === 'khabib'), k: RS, rot: ex.rot });
+      drawFighterHD(c, f.def, getPose(f), f.x * RS, (f.y + ex.dy) * RS, drawFace(f),
+        { flash: f.flash > 0, hat: f.st === 'win' || (f.st === 'taunt' && f.id === 'khabib'), rot: ex.rot });
     });
     c.setTransform(RS, 0, 0, RS, sx, sy);
     for (const p of G.parts) {

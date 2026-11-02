@@ -229,11 +229,12 @@ const MOVES = {
   hookP: { cat: 'p', len: 24, cancel: 13, keys: [[0,'cross'],[4,'hookW'],[8,'hook'],[12,'hook'],[24,'idle']],
            hits: [{ s: 8, e: 10, limb: 'fh', dmg: 8, kb: 2.4, stun: 18 }] },
   // назад + рука: вертушка рукой (бэкфист)
-  backfist: { cat: 'p', len: 30, flip: [3, 10], lunge: [3, 10, 1.8], keys: [[0,'idle'],[6,'spinW'],[11,'bfist'],[17,'bfist'],[30,'idle']],
+  backfist: { cat: 'p', len: 30, spinAir: [2, 10], lunge: [3, 10, 1.8], keys: [[0,'idle'],[6,'spinW'],[11,'bfist'],[17,'bfist'],[30,'idle']],
            hits: [{ s: 10, e: 14, limb: 'fh', dmg: 11, kb: 3, stun: 24 }], whoosh: 'spin' },
   // назад + нога: вертушка ногой
-  spinKick: { cat: 'k', len: 38, flip: [4, 13], keys: [[0,'idle'],[8,'spinKW'],[14,'shk'],[21,'shk'],[38,'idle']],
-           hits: [{ s: 14, e: 18, limb: 'bf', dmg: 14, kb: 4, stun: 30, kd: true }], whoosh: 'spin' },
+  spinKick: { cat: 'k', len: 42, jump: [3, -3.9], lunge: [3, 20, 1.7], spinAir: [3, 17],
+           keys: [[0,'crouch'],[3,'jump'],[14,'spinKW'],[18,'shk'],[28,'shk'],[42,'idle']],
+           hits: [{ s: 17, e: 23, limb: 'bf', dmg: 15, kb: 4, stun: 30, kd: true }], whoosh: 'spin' },
   // вниз-вперёд + нога: в корпус
   bodyKick: { cat: 'k', len: 30, cancel: 17, keys: [[0,'idle'],[6,'highW'],[11,'bodyK'],[17,'bodyK'],[30,'idle']],
            hits: [{ s: 11, e: 14, limb: 'bf', dmg: 9, kb: 2.5, stun: 20 }] },
@@ -275,8 +276,8 @@ const MOVES = {
            hits: [{ s: 8, e: 19, limb: 'fk', dmg: 19, kb: 4, stun: 36, kd: true }] },
   sp_left: { cat: 's', len: 26, lunge: [2, 8, 2.8], keys: [[0,'idle'],[4,'leftS'],[14,'leftS'],[26,'idle']],
            hits: [{ s: 4, e: 8, limb: 'fh', dmg: 21, kb: 4, stun: 40, kd: true }] },
-  sp_spin: { cat: 's', len: 36, flip: [4, 12], keys: [[0,'idle'],[8,'spinKW'],[13,'spinK'],[21,'spinK'],[36,'idle']],
-           hits: [{ s: 13, e: 17, limb: 'bf', dmg: 19, kb: 5, stun: 36, kd: true }] },
+  sp_spin: { cat: 's', len: 40, jump: [3, -4.3], lunge: [3, 20, 2], spinAir: [3, 18], keys: [[0,'crouch'],[3,'jump'],[14,'spinKW'],[19,'spinK'],[27,'spinK'],[40,'idle']],
+           hits: [{ s: 19, e: 24, limb: 'bf', dmg: 19, kb: 5, stun: 36, kd: true }] },
   sp_flurry: { cat: 's', len: 46, lunge: [0, 28, 1.3], keys: [[0,'idle'],[4,'jab'],[8,'cross'],[14,'hook'],[20,'cross'],[26,'upperW'],[29,'upper'],[36,'upper'],[46,'idle']],
            hits: [{ s: 4, e: 6, limb: 'fh', dmg: 5, kb: 0.6, stun: 22 }, { s: 8, e: 10, limb: 'bh', dmg: 5, kb: 0.6, stun: 22 },
                   { s: 14, e: 16, limb: 'fh', dmg: 6, kb: 0.6, stun: 22 }, { s: 20, e: 22, limb: 'bh', dmg: 6, kb: 0.6, stun: 22 },
