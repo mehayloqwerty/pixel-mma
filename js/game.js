@@ -29,7 +29,7 @@ function newMatch(o) {
     mode: o.mode, stage: o.stage, diff: o.diff ?? 1,
     f: [mkFighter(0, o.p1), mkFighter(1, o.p2)],
     round: 1, wins: [0, 0], timer: ROUND_T, phase: 'intro', phaseT: 0, winner: -1,
-    hitstop: 0, slow: 0, shake: 0, parts: [], fx: [], remote: EMPTY(), frame: 0,
+    hitstop: 0, slow: 0, shake: 0, parts: [], fx: [], remoteHeld: 0, remoteLatch: 0, frame: 0,
     ai: [makeAI(o.mode === 'demo' ? 1 : 0), makeAI(o.diff ?? 1)],
   };
   Sound.quiet = o.mode === 'demo';
@@ -533,8 +533,9 @@ function step() {
   const [a, b] = g.f;
   if (g.phase === 'fight') {
     a.inp = g.mode === 'demo' ? aiInput(a, b, g.ai[0]) : Input.read();
-    b.inp = g.mode === 'host' ? g.remote : aiInput(b, a, g.ai[1]);
+    b.inp = g.mode === 'host' ? decIn(g.remoteHeld | g.remoteLatch) : aiInput(b, a, g.ai[1]);
   } else { a.inp = EMPTY(); b.inp = EMPTY(); }
+  g.remoteLatch = 0;
   updFighter(a, b); updFighter(b, a);
   checkHits(a, b); checkHits(b, a);
   separate(a, b);
@@ -559,7 +560,7 @@ function netSend(o) { try { if (Net.conn && Net.conn.open) Net.conn.send(o); } c
 
 function onNetData(d) {
   if (!d || !d.t) return;
-  if (d.t === 'i' && G && G.mode === 'host') G.remote = decIn(d.v);
+  if (d.t === 'i' && G && G.mode === 'host') { Net.guestSeen = true; G.remoteHeld = d.v; G.remoteLatch |= d.v; }
   else if (d.t === 's' && G && G.mode === 'guest') {
     applySnapF(G.f[0], d.a); applySnapF(G.f[1], d.b);
     G.timer = d.tm; G.round = d.rd; G.wins = d.w; G.phase = d.ph; G.phaseT = d.pt;
@@ -577,14 +578,19 @@ function cleanupNet() {
 let paused = false;
 function tick() {
   if (!G) return;
+  const online = G.mode === 'host' || G.mode === 'guest';
+  if (online && Net.lastRx && performance.now() - Net.lastRx > 12000) { UI.netLost(); return; }
+  Net.tick = (Net.tick || 0) + 1;
   if (G.mode === 'guest') {
-    netSend({ t: 'i', v: encIn(Input.read()) });
+    // кнопки шлём при изменении и раз в 6 кадров для надёжности
+    const v = encIn(Input.read());
+    if (v !== Net.lastIn || Net.tick % 6 === 0) { netSend({ t: 'i', v }); Net.lastIn = v; }
     updateParts();
     return;
   }
   if (paused) return;
   step();
-  if (G.mode === 'host') {
+  if (G.mode === 'host' && Net.tick % 2 === 0) {
     netSend({ t: 's', a: snapF(G.f[0]), b: snapF(G.f[1]), tm: G.timer, rd: G.round, w: G.wins, ph: G.phase, pt: G.phaseT, fx: G.fx });
     G.fx = [];
   }

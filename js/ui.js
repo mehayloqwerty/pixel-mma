@@ -220,6 +220,7 @@ function startFight(o) {
   $('hud').classList.remove('hidden');
   $('touch').classList.toggle('hidden', !isTouch());
   newMatch(o);
+  Net.lastRx = performance.now();
   const me = o.mode === 'guest' ? 1 : 0, online = o.mode !== 'bot';
   [0, 1].forEach(i => { $('nm' + i).textContent = G.f[i].def.name + (online && i === me ? ' ★ТЫ' : ''); });
   goFullscreen();
@@ -233,89 +234,77 @@ function botFight() {
 }
 
 // ---------- Онлайн
-function makePeer(id) {
-  return new Peer(id, {
-    debug: 1,
-    config: { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }, { urls: 'stun:stun1.l.google.com:19302' }, { urls: 'stun:global.stun.twilio.com:3478' }] },
-  });
-}
-
-// связь с сервером оборвалась (телефон свернул игру) — пробуем вернуть, пока не получится
-function revive(peer, n = 0) {
-  setTimeout(() => {
-    if (peer.destroyed || !peer.disconnected || Net.peer !== peer) return;
-    try { peer.reconnect(); } catch (e) {}
-    if (n < 20) revive(peer, n + 1);
-  }, n ? 2000 : 600);
+// ---------- Онлайн через сервер-посредник MQTT: проходит через любой мобильный интернет и роутер
+const BROKERS = ['wss://broker.emqx.io:8084/mqtt', 'wss://broker.hivemq.com:8884/mqtt'];
+function relay(room, me, onMsg, onReady, fixed) {
+  const other = me === 'host' ? 'guest' : 'host';
+  let bi = fixed ?? 0, client = null, closed = false;
+  const connect = () => {
+    let ok = false;
+    client = mqtt.connect(BROKERS[bi], {
+      clientId: 'pml_' + me + '_' + Math.random().toString(36).slice(2, 10),
+      reconnectPeriod: 1500, connectTimeout: 6000, clean: true,
+    });
+    client.on('connect', () => { ok = true; client.subscribe('pml/' + room + '/' + me, { qos: 0 }); onReady(bi); });
+    client.on('message', (t, buf) => { Net.lastRx = performance.now(); try { onMsg(JSON.parse(buf.toString())); } catch (e) {} });
+    client.on('error', () => {});
+    if (fixed === undefined) setTimeout(() => {
+      if (!ok && !closed && bi < BROKERS.length - 1) { client.end(true); bi++; connect(); }
+    }, 7000);
+  };
+  connect();
+  return {
+    open: true,
+    send(o) { if (client && client.connected) client.publish('pml/' + room + '/' + other, JSON.stringify(o), { qos: 0 }); },
+    close() { closed = true; this.open = false; if (client) client.end(true); },
+    destroy() { this.close(); },
+  };
 }
 
 function hostRoom() {
-  if (typeof Peer === 'undefined') { $('hostStatus').textContent = 'Нет интернета для онлайна'; return; }
+  show('s-host');
+  if (typeof mqtt === 'undefined') { $('hostStatus').textContent = 'НЕТ ИНТЕРНЕТА ДЛЯ ОНЛАЙНА'; return; }
   cleanupNet();
-  Net.role = 'host';
+  Net.role = 'host'; Net.guestSeen = false;
   $('link').value = '';
   $('hostStatus').textContent = 'СОЗДАЮ КОМНАТУ...';
-  show('s-host');
-  const id = 'pml-' + Math.random().toString(36).slice(2, 8);
-  const peer = Net.peer = makePeer(id);
-  peer.on('open', pid => {
-    $('link').value = location.origin + location.pathname + '?room=' + pid;
-    $('hostStatus').textContent = 'ЖДЁМ ДРУГА...';
-  });
-  peer.on('connection', c => {
-    if (Net.conn && Net.conn.open) { c.close(); return; }
-    Net.conn = c;
-    c.on('open', () => { $('hostStatus').textContent = 'ДРУГ ПОДКЛЮЧИЛСЯ!'; });
-    c.on('data', onNetData);
-    c.on('close', netLost);
-  });
-  peer.on('disconnected', () => revive(peer));
-  peer.on('error', e => {
-    if (['network', 'server-error', 'socket-error', 'socket-closed', 'disconnected'].includes(e.type) && !peer.destroyed) {
-      $('hostStatus').textContent = 'ВОССТАНАВЛИВАЮ КОМНАТУ...';
-      setTimeout(() => { try { if (peer.disconnected) peer.reconnect(); } catch (err) {} }, 1500);
-    } else $('hostStatus').textContent = 'ОШИБКА СВЯЗИ: ' + e.type;
+  const room = Math.random().toString(36).slice(2, 8);
+  Net.conn = Net.peer = relay(room, 'host', onNetData, bi => {
+    $('link').value = location.origin + location.pathname + '?room=' + room + '&b=' + bi;
+    if (!G || G.mode !== 'host') $('hostStatus').textContent = 'ЖДЁМ ДРУГА...';
   });
 }
 
 function hostStart() {
   const stage = Math.random() * STAGES.length | 0;
-  netSend({ t: 'start', p1: Flow.p1, p2: Flow.p2, stage });
+  Net.lastStart = { t: 'start', p1: Flow.p1, p2: Flow.p2, stage };
+  Net.guestSeen = false;
+  netSend(Net.lastStart);
   startFight({ mode: 'host', p1: Flow.p1, p2: Flow.p2, stage });
 }
 
 function joinRoom() {
-  if (typeof Peer === 'undefined') { $('waitTxt').textContent = 'НЕТ ИНТЕРНЕТА'; show('s-wait'); return; }
+  show('s-wait');
+  if (typeof mqtt === 'undefined') { $('waitTxt').textContent = 'НЕТ ИНТЕРНЕТА'; return; }
   cleanupNet();
   Net.role = 'guest';
-  $('waitTxt').textContent = 'ПОДКЛЮЧАЮСЬ К ДРУГУ...';
-  show('s-wait');
-  const peer = Net.peer = makePeer();
-  let tries = 0, retry = null;
-  // друг мог на секунду выйти из игры — стучимся несколько раз
-  const attempt = () => {
-    if (Net.peer !== peer || (Net.conn && Net.conn.open)) return;
-    if (++tries > 8) {
-      $('waitTxt').textContent = 'НЕ ПОЛУЧАЕТСЯ СОЕДИНИТЬСЯ. ДРУГ ДОЛЖЕН ДЕРЖАТЬ ИГРУ ОТКРЫТОЙ. ПОПРОБУЙТЕ ЧЕРЕЗ WI-FI';
-      return;
-    }
-    try { Net.conn && Net.conn.close(); } catch (e) {}
-    const c = Net.conn = peer.connect(Flow.room, { reliable: true, serialization: 'json' });
-    c.on('open', () => { clearTimeout(retry); $('waitTxt').textContent = 'ДРУГ НАЙДЕН! НАЧИНАЕМ...'; c.send({ t: 'hello', fid: Flow.p1 }); });
-    c.on('data', onNetData);
-    c.on('close', () => { if (G && G.mode === 'guest') netLost(); });
-    clearTimeout(retry);
-    retry = setTimeout(attempt, 5000);
-    if (tries > 1) $('waitTxt').textContent = 'ПОДКЛЮЧАЮСЬ К ДРУГУ... ПОПЫТКА ' + tries;
-  };
-  peer.on('open', attempt);
-  peer.on('disconnected', () => revive(peer));
-  peer.on('error', e => {
-    if (e.type === 'peer-unavailable') {
-      $('waitTxt').textContent = 'ДРУГ ПОКА НЕ В ИГРЕ... ЖДЁМ (ПОПЫТКА ' + tries + ')';
-      clearTimeout(retry); retry = setTimeout(attempt, 3000);
-    } else $('waitTxt').textContent = 'ОШИБКА СВЯЗИ: ' + e.type;
-  });
+  $('waitTxt').textContent = 'ПОДКЛЮЧАЮСЬ...';
+  let knocking = false;
+  const r = Net.conn = Net.peer = relay(Flow.room, 'guest', onNetData, () => {
+    if (knocking) return;
+    knocking = true;
+    let n = 0;
+    // стучимся, пока друг не начнёт бой (он мог выйти в мессенджер)
+    const knock = () => {
+      if (Net.conn !== r || (G && G.mode === 'guest')) return;
+      r.send({ t: 'hello', fid: Flow.p1 });
+      n++;
+      $('waitTxt').textContent = n < 4 ? 'ИЩУ ДРУГА В КОМНАТЕ...' : 'ЖДЁМ ДРУГА... ПУСТЬ ВЕРНЁТСЯ В ИГРУ';
+      if (n > 60) { $('waitTxt').textContent = 'ДРУГ НЕ ОТВЕЧАЕТ. ПУСТЬ ОТКРОЕТ ИГРУ И ПРИШЛЁТ НОВУЮ ССЫЛКУ'; return; }
+      setTimeout(knock, 1500);
+    };
+    knock();
+  }, Flow.broker);
 }
 
 function netLost() {
@@ -333,6 +322,7 @@ function netLost() {
 
 // ---------- Публичный интерфейс для движка
 const UI = {
+  netLost() { netLost(); },
   banner(text, big) {
     const b = $('banner');
     b.textContent = text;
@@ -379,7 +369,11 @@ const UI = {
     show('s-result');
   },
   onNet(d) {
-    if (d.t === 'hello' && Net.role === 'host') { Flow.p2 = d.fid; hostStart(); }
+    if (d.t === 'hello' && Net.role === 'host') {
+      // повторный «стук» во время боя: друг мог не получить старт — шлём ещё раз
+      if (G && G.mode === 'host' && G.phase !== 'over') { if (!Net.guestSeen) netSend(Net.lastStart); return; }
+      Flow.p2 = d.fid; hostStart();
+    }
     else if (d.t === 'start' && Net.role === 'guest') startFight({ mode: 'guest', p1: d.p1, p2: d.p2, stage: d.stage });
   },
   togglePause(forceOn) {
@@ -478,15 +472,10 @@ function wire() {
   });
 }
 
-// вернулись в игру из мессенджера — восстанавливаем связь с сервером
-document.addEventListener('visibilitychange', () => {
-  if (document.hidden || !Net.peer || Net.peer.destroyed) return;
-  if (Net.peer.disconnected) revive(Net.peer);
-  if (Net.role === 'host' && !(Net.conn && Net.conn.open) && Net.peer.open) $('hostStatus').textContent = 'ЖДЁМ ДРУГА...';
-});
-
 // ---------- Запуск
-Flow.room = new URLSearchParams(location.search).get('room');
+const qs = new URLSearchParams(location.search);
+Flow.room = qs.get('room');
+Flow.broker = qs.has('b') ? +qs.get('b') || 0 : 0;
 buildGrid();
 buildSetup();
 wire();
