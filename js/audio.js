@@ -260,15 +260,37 @@ const Sound = (() => {
     }
   }
 
-  function music(name) {
-    init(); if (!ctx) return;
+  // ---- Настоящие треки: Kevin MacLeod (incompetech.com), CC BY 4.0. Чиптюн — запасной вариант без сети.
+  const TRACKS = {
+    menu: 'Volatile Reaction', khabib: 'Five Armies', oliveira: 'Samba Isobel', jones: 'Hitman',
+    tyson: 'Movement Proposition', tsarukyan: 'Desert City', mcgregor: 'Celtic Impulse', adesanya: 'Rites',
+    poirier: 'Rollin at 5', ngannou: 'Killers', usyk: 'Crusade', pimblett: 'Cut and Run',
+  };
+  const player = new Audio();
+  player.loop = true; player.preload = 'auto';
+  let trackName = null;
+  const trackVol = () => (muted ? 0 : 0.6);
+  player.addEventListener('error', () => { if (trackName) { const n = trackName; trackName = null; chip(n); } });
+
+  function chip(name) {
     const s = SONGS[name] || SONGS.menu;
     if (song === s) return;
-    stopMusic();
+    clearInterval(timer);
     song = s; stepN = 0; nextTime = ctx.currentTime + 0.08;
     timer = setInterval(sched, 25);
   }
-  function stopMusic() { clearInterval(timer); timer = null; song = null; }
+
+  function music(name) {
+    init(); if (!ctx) return;
+    if (!TRACKS[name]) name = 'menu';
+    if (trackName === name) { if (player.paused && !document.hidden) player.play().catch(() => {}); return; }
+    clearInterval(timer); timer = null; song = null;
+    trackName = name;
+    player.src = 'music/' + name + '.m4a';
+    player.volume = trackVol();
+    player.play().catch(() => {});
+  }
+  function stopMusic() { clearInterval(timer); timer = null; song = null; player.pause(); trackName = null; }
 
   // ---- Звуковые эффекты
   let quiet = false;
@@ -310,16 +332,19 @@ const Sound = (() => {
     muted = m;
     try { localStorage.setItem('pml_mute', m ? '1' : '0'); } catch (e) {}
     if (master) master.gain.value = m ? 0 : 0.55;
+    player.volume = trackVol();
   }
 
   document.addEventListener('visibilitychange', () => {
+    if (document.hidden) player.pause(); else if (trackName) player.play().catch(() => {});
     if (!ctx) return;
     if (document.hidden) ctx.suspend(); else ctx.resume();
   });
 
   return {
     init, music, stopMusic, sfx, setMuted,
-    title: name => (SONGS[name] || SONGS.menu).title,
+    title: name => (TRACKS[name] || TRACKS.menu) + ' — Kevin MacLeod',
+    credits: () => Object.values(TRACKS),
     get muted() { return muted; },
     set quiet(q) { quiet = q; },
   };

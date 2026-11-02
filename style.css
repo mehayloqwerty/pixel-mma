@@ -166,3 +166,4 @@ body:not(.portrait) .tb { width: 64px; height: 64px; }
 body:not(.portrait) #pad { width: 170px; height: 170px; }
 body:not(.portrait) .tb.s, body:not(.portrait) .tb.b { left: 53px; }
 body:not(.portrait) .tb.p, body:not(.portrait) .tb.k { top: 53px; }
+.credits { font-size: 7px !important; color: #aaa; }
