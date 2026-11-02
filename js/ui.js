@@ -240,6 +240,15 @@ function makePeer(id) {
   });
 }
 
+// связь с сервером оборвалась (телефон свернул игру) — пробуем вернуть, пока не получится
+function revive(peer, n = 0) {
+  setTimeout(() => {
+    if (peer.destroyed || !peer.disconnected || Net.peer !== peer) return;
+    try { peer.reconnect(); } catch (e) {}
+    if (n < 20) revive(peer, n + 1);
+  }, n ? 2000 : 600);
+}
+
 function hostRoom() {
   if (typeof Peer === 'undefined') { $('hostStatus').textContent = 'Нет интернета для онлайна'; return; }
   cleanupNet();
@@ -260,7 +269,13 @@ function hostRoom() {
     c.on('data', onNetData);
     c.on('close', netLost);
   });
-  peer.on('error', e => { $('hostStatus').textContent = 'ОШИБКА СВЯЗИ: ' + e.type; });
+  peer.on('disconnected', () => revive(peer));
+  peer.on('error', e => {
+    if (['network', 'server-error', 'socket-error', 'socket-closed', 'disconnected'].includes(e.type) && !peer.destroyed) {
+      $('hostStatus').textContent = 'ВОССТАНАВЛИВАЮ КОМНАТУ...';
+      setTimeout(() => { try { if (peer.disconnected) peer.reconnect(); } catch (err) {} }, 1500);
+    } else $('hostStatus').textContent = 'ОШИБКА СВЯЗИ: ' + e.type;
+  });
 }
 
 function hostStart() {
@@ -276,21 +291,30 @@ function joinRoom() {
   $('waitTxt').textContent = 'ПОДКЛЮЧАЮСЬ К ДРУГУ...';
   show('s-wait');
   const peer = Net.peer = makePeer();
-  setTimeout(() => {
-    if (Net.peer === peer && !(Net.conn && Net.conn.open)) {
-      $('waitTxt').textContent = 'НЕ ПОЛУЧАЕТСЯ СОЕДИНИТЬСЯ. ПОПРОБУЙТЕ ОБА ЧЕРЕЗ WI-FI И НОВУЮ ССЫЛКУ';
+  let tries = 0, retry = null;
+  // друг мог на секунду выйти из игры — стучимся несколько раз
+  const attempt = () => {
+    if (Net.peer !== peer || (Net.conn && Net.conn.open)) return;
+    if (++tries > 8) {
+      $('waitTxt').textContent = 'НЕ ПОЛУЧАЕТСЯ СОЕДИНИТЬСЯ. ДРУГ ДОЛЖЕН ДЕРЖАТЬ ИГРУ ОТКРЫТОЙ. ПОПРОБУЙТЕ ЧЕРЕЗ WI-FI';
+      return;
     }
-  }, 15000);
-  peer.on('open', () => {
+    try { Net.conn && Net.conn.close(); } catch (e) {}
     const c = Net.conn = peer.connect(Flow.room, { reliable: true, serialization: 'json' });
-    c.on('open', () => { $('waitTxt').textContent = 'ДРУГ НАЙДЕН! НАЧИНАЕМ...'; c.send({ t: 'hello', fid: Flow.p1 }); });
+    c.on('open', () => { clearTimeout(retry); $('waitTxt').textContent = 'ДРУГ НАЙДЕН! НАЧИНАЕМ...'; c.send({ t: 'hello', fid: Flow.p1 }); });
     c.on('data', onNetData);
-    c.on('close', netLost);
-  });
+    c.on('close', () => { if (G && G.mode === 'guest') netLost(); });
+    clearTimeout(retry);
+    retry = setTimeout(attempt, 5000);
+    if (tries > 1) $('waitTxt').textContent = 'ПОДКЛЮЧАЮСЬ К ДРУГУ... ПОПЫТКА ' + tries;
+  };
+  peer.on('open', attempt);
+  peer.on('disconnected', () => revive(peer));
   peer.on('error', e => {
-    $('waitTxt').textContent = e.type === 'peer-unavailable'
-      ? 'КОМНАТА НЕ НАЙДЕНА. ПОПРОСИ ДРУГА ПРИСЛАТЬ НОВУЮ ССЫЛКУ'
-      : 'ОШИБКА СВЯЗИ: ' + e.type;
+    if (e.type === 'peer-unavailable') {
+      $('waitTxt').textContent = 'ДРУГ ПОКА НЕ В ИГРЕ... ЖДЁМ (ПОПЫТКА ' + tries + ')';
+      clearTimeout(retry); retry = setTimeout(attempt, 3000);
+    } else $('waitTxt').textContent = 'ОШИБКА СВЯЗИ: ' + e.type;
   });
 }
 
@@ -453,6 +477,13 @@ function wire() {
     if (e.code === 'Escape') $('selBack').click();
   });
 }
+
+// вернулись в игру из мессенджера — восстанавливаем связь с сервером
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden || !Net.peer || Net.peer.destroyed) return;
+  if (Net.peer.disconnected) revive(Net.peer);
+  if (Net.role === 'host' && !(Net.conn && Net.conn.open) && Net.peer.open) $('hostStatus').textContent = 'ЖДЁМ ДРУГА...';
+});
 
 // ---------- Запуск
 Flow.room = new URLSearchParams(location.search).get('room');
