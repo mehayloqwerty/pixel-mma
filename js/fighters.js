@@ -91,6 +91,15 @@ const ROSTER = [
     look: { skin: '#ebbf9b', skinD: '#bd8f6d', hair: '#2a1d14', hairStyle: 'chub', beard: 'none',
             shorts: '#1f5fd0', shorts2: '#f7d21c', gloves: '#1f5fd0', boxing: true, shoes: '#f7d21c' },
   },
+  {
+    id: 'pimblett', name: 'ПИМБЛЕТТ', nick: 'Бадди', flag: '🇬🇧',
+    style: 'Скаузер-хулиган. Машет без остановки и душит из любой позиции.',
+    special: 'sp_scouse', spName: 'СКАУЗЕРСКИЙ ЗАМЕС',
+    stats: { pow: 7, spd: 8, grap: 8, reach: 6 },
+    scale: 1.0, bulk: 0.98, pMul: 1.05, kMul: 1.0, spd: 1.06, walk: 1.05, hp: 98,
+    look: { skin: '#f3c9ab', skinD: '#c99a7c', hair: '#ecd27a', hairStyle: 'mullet', beard: 'stubble',
+            shorts: '#151515', shorts2: '#d81f26', gloves: '#161616' },
+  },
 ];
 const FIGHTER = Object.fromEntries(ROSTER.map(f => [f.id, f]));
 
@@ -143,14 +152,17 @@ const POSE = {
   bombW:  P(-1,-30, -2,-50, 10,-42, 14,-48, -4,-50, -8,-61, 8,-15, 10,0, -5,-15, -10,0),
   bomb:   P(4,-29, 13,-45, 8,-38, 10,-46, 22,-48, 32,-40, 11,-15, 13,0, -2,-14, -7,0),
   peekW:  P(0,-24, 8,-40, 13,-36, 14,-44, 9,-34, 12,-42, 11,-12, 10,0, -6,-11, -12,0),
+  bfist:  P(2,-30, 8,-50, 20,-51, 31,-50, 6,-40, 10,-46, 9,-15, 12,0, -4,-15, -9,0),
+  shk:    P(-1,-33, -11,-46, -2,-42, 2,-48, -8,-40, -4,-46, -1,-16, -1,0, 16,-44, 35,-52),
+  bodyK:  P(0,-31, -6,-49, 4,-43, 8,-50, -2,-40, -5,-46, 3,-16, 4,0, 15,-32, 31,-34),
   peekW2: P(0,-24, 2,-41, 9,-37, 11,-45, 5,-34, 8,-43, 11,-12, 10,0, -6,-11, -12,0),
 };
 
 // ---- Удары. keys: [кадр, поза]; hits: окна попадания; lunge: [с, по, скорость]
 const MOVES = {
-  jab:   { cat: 'p', len: 18, cancel: 9, keys: [[0,'idle'],[3,'jab'],[8,'jab'],[18,'idle']],
+  jab:   { cat: 'p', len: 18, cancel: 9, chain: { btn: 'p', to: 'cross', at: 6 }, keys: [[0,'idle'],[3,'jab'],[8,'jab'],[18,'idle']],
            hits: [{ s: 3, e: 6, limb: 'fh', dmg: 4, kb: 1.2, stun: 13 }] },
-  cross: { cat: 'p', len: 24, cancel: 12, lunge: [2, 6, 1.2], keys: [[0,'idle'],[5,'cross'],[11,'cross'],[24,'idle']],
+  cross: { cat: 'p', len: 24, cancel: 12, chain: { btn: 'p', to: 'hookP', at: 9 }, lunge: [2, 6, 1.2], keys: [[0,'idle'],[5,'cross'],[11,'cross'],[24,'idle']],
            hits: [{ s: 5, e: 8, limb: 'bh', dmg: 7, kb: 2, stun: 17 }] },
   upper: { cat: 'p', len: 30, cancel: 17, keys: [[0,'idle'],[5,'upperW'],[9,'upper'],[16,'upper'],[30,'idle']],
            hits: [{ s: 8, e: 12, limb: 'bh', dmg: 10, kb: 2.4, stun: 22 }] },
@@ -172,7 +184,28 @@ const MOVES = {
   bodyHook: { cat: 'k', len: 24, cancel: 13, keys: [[0,'idle'],[4,'crouch'],[8,'bodyHook'],[13,'bodyHook'],[24,'idle']],
            hits: [{ s: 8, e: 11, limb: 'fh', dmg: 8, kb: 1.5, stun: 18 }] },
 
+  // тройка: джеб → кросс → хук
+  hookP: { cat: 'p', len: 24, cancel: 13, keys: [[0,'cross'],[4,'hookW'],[8,'hook'],[12,'hook'],[24,'idle']],
+           hits: [{ s: 8, e: 10, limb: 'fh', dmg: 8, kb: 2.4, stun: 18 }] },
+  // назад + рука: вертушка рукой (бэкфист)
+  backfist: { cat: 'p', len: 30, flip: [3, 10], lunge: [3, 10, 1.8], keys: [[0,'idle'],[6,'spinW'],[11,'bfist'],[17,'bfist'],[30,'idle']],
+           hits: [{ s: 10, e: 14, limb: 'fh', dmg: 11, kb: 3, stun: 24 }], whoosh: 'spin' },
+  // назад + нога: вертушка ногой
+  spinKick: { cat: 'k', len: 38, flip: [4, 13], keys: [[0,'idle'],[8,'spinKW'],[14,'shk'],[21,'shk'],[38,'idle']],
+           hits: [{ s: 14, e: 18, limb: 'bf', dmg: 14, kb: 4, stun: 30, kd: true }], whoosh: 'spin' },
+  // вниз-вперёд + нога: в корпус
+  bodyKick: { cat: 'k', len: 30, cancel: 17, keys: [[0,'idle'],[6,'highW'],[11,'bodyK'],[17,'bodyK'],[30,'idle']],
+           hits: [{ s: 11, e: 14, limb: 'bf', dmg: 9, kb: 2.5, stun: 20 }] },
+  // боксёрам: назад + рука — двойной джеб, назад + «нога» — двойка
+  doubleJab: { cat: 'p', len: 28, cancel: 16, keys: [[0,'idle'],[3,'jab'],[7,'idle'],[10,'jab'],[15,'jab'],[28,'idle']],
+           hits: [{ s: 3, e: 5, limb: 'fh', dmg: 4, kb: 0.5, stun: 16 }, { s: 10, e: 13, limb: 'fh', dmg: 5, kb: 1.5, stun: 16 }] },
+  oneTwo: { cat: 'k', len: 30, cancel: 18, lunge: [1, 10, 1.2], keys: [[0,'idle'],[3,'jab'],[8,'idle'],[11,'cross'],[17,'cross'],[30,'idle']],
+           hits: [{ s: 3, e: 5, limb: 'fh', dmg: 5, kb: 0.5, stun: 18 }, { s: 11, e: 14, limb: 'bh', dmg: 8, kb: 2.5, stun: 20 }] },
+
   // ---- Спешлы
+  sp_scouse: { cat: 's', len: 50, lunge: [0, 30, 1.5], keys: [[0,'idle'],[4,'hookW'],[8,'hook'],[13,'ovhW'],[17,'ovh'],[22,'hookW'],[26,'hook'],[31,'upperW'],[34,'upper'],[41,'upper'],[50,'idle']],
+           hits: [{ s: 8, e: 10, limb: 'fh', dmg: 6, kb: 0.6, stun: 22 }, { s: 17, e: 19, limb: 'bh', dmg: 6, kb: 0.6, stun: 22 },
+                  { s: 26, e: 28, limb: 'fh', dmg: 6, kb: 0.6, stun: 22 }, { s: 34, e: 37, limb: 'bh', dmg: 9, kb: 3.5, stun: 36, kd: true }] },
   sp_takedown: { cat: 's', len: 30, lunge: [4, 15, 3.4], keys: [[0,'crouch'],[6,'shoot'],[22,'shoot'],[30,'idle']],
            hits: [], grab: { s: 6, e: 17, r: 30, kind: 'gnp' } },
   sp_choke: { cat: 's', len: 32, lunge: [3, 12, 2.8], keys: [[0,'idle'],[6,'shoot'],[20,'shoot'],[32,'idle']],
@@ -249,10 +282,15 @@ function drawHead(ctx, cx, cy, R, up, L, o, C) {
       const inn = inside(u, v);
       if (inn) {
         c = u <= -R + 1 ? L.skinD : L.skin;
+        if (v <= -R * 0.5 && u <= 1) c = L.skinD;
+        if (u >= R - 1 && v >= -1 && v <= 1) c = shade(L.skin, 1.1);
         if (u >= -1 && u <= 0 && v >= -1 && v <= 0) c = L.skinD;
+        if (u === -1 && v === 0) c = shade(L.skinD, 0.85);
+        if (L.beard !== 'full' && u === Math.round(R * 0.6) && v === -Math.round(R * 0.5)) c = shade(L.skin, 0.62);
         const hs = L.hairStyle;
-        if ((hs === 'short' || hs === 'flattop' || hs === 'braids') &&
-            (v >= R * 0.35 || (u <= -R * 0.4 && v >= -R * 0.15))) c = hairC;
+        if ((hs === 'short' || hs === 'flattop' || hs === 'braids' || hs === 'mullet') &&
+            (v >= R * 0.35 || (u <= -R * 0.4 && v >= -R * 0.15))) c = (u + v) % 3 === 0 ? shade(hairC, 1.25) : hairC;
+        if (hs === 'mullet' && u <= -R * 0.4 && v >= -R * 0.7) c = hairC;
         if (hs === 'chub' && v >= R - 1 && u >= -2 && u <= 1) c = hairC;
         if (L.beard === 'full' && ((v <= -2 && u >= -2) || (v <= 0 && u >= -2 && u <= 0))) c = beardC;
         if (L.beard === 'goatee' && v <= -R * 0.45 && u >= 0) c = beardC;
@@ -265,6 +303,8 @@ function drawHead(ctx, cx, cy, R, up, L, o, C) {
         if (L.hairStyle === 'chub' && ((v >= R - 1 && v <= R + 1 && u >= -2 && u <= 0) ||
             (u >= -R - 1 && u <= -R + 1 && v >= -2 && v <= R - 1))) c = hairC;
         if (L.hairStyle === 'braids' && u >= -R - 1 && u <= -R && v >= -4 && v <= 1 && !(v & 1)) c = hairC;
+        if (L.hairStyle === 'mullet' && ((u >= -R - 1 && u <= -R + 1 && v >= -R - 1 && v <= 1) || (v === R + 1 && u >= -2 && u <= 2))) c = hairC;
+        if (u === R + 1 && v === 0) c = L.skin; // нос
       }
       if (o.hat && L.hat === 'papakha' && v >= Math.round(R * 0.3) && v <= R + 5 && Math.abs(u) <= R + 1) {
         c = ((u + v) & 1) ? '#bdb5a6' : '#ebe6dc';
@@ -308,30 +348,52 @@ function drawFighter(ctx, def, pose, X, Y, face, o = {}) {
   const torW = Math.round(10 * b * s), R = Math.round(5 * s);
   const mid = (a, c, t) => [a[0] + (c[0] - a[0]) * t, a[1] + (c[1] - a[1]) * t];
 
+  // кисть, сужающаяся от w0 к w1
+  const tseg = (a, c, w0, w1, col) => {
+    ctx.fillStyle = col;
+    const dx = c[0] - a[0], dy = c[1] - a[1];
+    const n = Math.max(1, Math.ceil(Math.max(Math.abs(dx), Math.abs(dy))));
+    for (let i = 0; i <= n; i++) {
+      const t = i / n, w = Math.max(1, Math.round(w0 + (w1 - w0) * t));
+      ctx.fillRect(Math.round(a[0] + dx * t - w / 2), Math.round(a[1] + dy * t - w / 2), w, w);
+    }
+  };
+  // часть конечности со светом сверху и тенью снизу
+  const limb = (a, c, w0, w1, col, outline = true) => {
+    if (outline) tseg(a, c, w0 + 2, w1 + 2, C(OUTLINE));
+    tseg(a, c, w0, w1, C(col));
+    if (w0 < 4) return;
+    const dx = c[0] - a[0], dy = c[1] - a[1], l = Math.hypot(dx, dy) || 1;
+    let px = -dy / l, py = dx / l;
+    if (py > 0 || (py === 0 && px < 0)) { px = -px; py = -py; }
+    const o0 = w0 / 2 - 1.2, o1 = w1 / 2 - 1.2;
+    tseg([a[0] + px * o0, a[1] + py * o0], [c[0] + px * o1, c[1] + py * o1], 1, 1, C(shade(col, 1.16)));
+    tseg([a[0] - px * o0, a[1] - py * o0], [c[0] - px * o1, c[1] - py * o1], 1, 1, C(shade(col, 0.8)));
+  };
   const leg = (hip, knee, foot, skin, shorts) => {
-    seg(ctx, hip[0], hip[1], knee[0], knee[1], legW + 2, C(OUTLINE));
-    seg(ctx, knee[0], knee[1], foot[0], foot[1], legW + 1, C(OUTLINE));
-    seg(ctx, foot[0], foot[1], foot[0] + 3 * s, foot[1], 5, C(OUTLINE));
-    seg(ctx, hip[0], hip[1], knee[0], knee[1], legW, C(skin));
-    seg(ctx, knee[0], knee[1], foot[0], foot[1], legW - 1, C(skin));
-    seg(ctx, foot[0], foot[1], foot[0] + 3 * s, foot[1], 3, C(L.shoes || skin));
-    const m = mid(hip, knee, 0.55);
-    seg(ctx, hip[0], hip[1], m[0], m[1], legW + 1, C(shorts));
+    const toe = [foot[0] + 4 * s, foot[1]];
+    tseg(foot, toe, 5, 4, C(OUTLINE));
+    limb(hip, knee, legW + 1, legW, skin);
+    limb(knee, foot, legW, legW - 2, skin);
+    tseg(foot, toe, 3, 2, C(L.shoes || skin));
+    if (!L.shoes) tseg([foot[0] - 1, foot[1]], [foot[0] - 1, foot[1]], 2, 2, C(shade(skin, 0.8)));
+    const m = mid(hip, knee, 0.5);
+    tseg(hip, m, legW + 3, legW + 2, C(shorts));
+    tseg(mid(hip, knee, 0.45), m, legW + 2, legW + 2, C(shade(shorts, 0.7)));
   };
   const arm = (shp, elbow, hand, skin, glove) => {
-    seg(ctx, shp[0], shp[1], elbow[0], elbow[1], armW + 2, C(OUTLINE));
-    seg(ctx, elbow[0], elbow[1], hand[0], hand[1], armW + 2, C(OUTLINE));
-    seg(ctx, shp[0], shp[1], elbow[0], elbow[1], armW, C(skin));
-    seg(ctx, elbow[0], elbow[1], hand[0], hand[1], armW, C(skin));
+    limb(shp, elbow, armW + 1, armW, skin);
+    limb(elbow, hand, armW, armW - 1, skin);
     const g = L.boxing ? Math.round(6 * s) : Math.round(4 * s);
+    const gx = Math.round(hand[0] - g / 2), gy = Math.round(hand[1] - g / 2);
     ctx.fillStyle = C(OUTLINE);
-    ctx.fillRect(Math.round(hand[0] - g / 2) - 1, Math.round(hand[1] - g / 2) - 1, g + 2, g + 2);
+    ctx.fillRect(gx - 1, gy - 1, g + 2, g + 2);
     ctx.fillStyle = C(glove);
-    ctx.fillRect(Math.round(hand[0] - g / 2), Math.round(hand[1] - g / 2), g, g);
-    if (L.boxing) {
-      ctx.fillStyle = C(shade(glove, 1.4));
-      ctx.fillRect(Math.round(hand[0] - g / 2) + 1, Math.round(hand[1] - g / 2) + 1, 2, 1);
-    }
+    ctx.fillRect(gx, gy, g, g);
+    ctx.fillStyle = C(shade(glove, L.boxing ? 1.4 : 2.6));
+    ctx.fillRect(gx + 1, gy, g - 2, 1);
+    ctx.fillStyle = C(shade(glove, 0.6));
+    ctx.fillRect(gx, gy + g - 1, g, 1);
   };
 
   // задние конечности темнее
@@ -354,6 +416,16 @@ function drawFighter(ctx, def, pose, X, Y, face, o = {}) {
       sh[0] + fwd[0] * hl - up[0] * 2, sh[1] + fwd[1] * hl - up[1] * 2, 2, C(shade(L.skin, 1.12)));
   seg(ctx, J.hip[0] - fwd[0] * (hl + 1) + up[0] * 4, J.hip[1] - fwd[1] * (hl + 1) + up[1] * 4,
       sh[0] - fwd[0] * (hl + 1) - up[0] * 2, sh[1] - fwd[1] * (hl + 1) - up[1] * 2, 2, C(L.skinD));
+  // мышцы: грудь, пресс, плечо
+  const at = (k, f) => [J.hip[0] + up[0] * k + fwd[0] * f, J.hip[1] + up[1] * k + fwd[1] * f];
+  const dot = (p, col, w = 1, h = 1) => { ctx.fillStyle = col; ctx.fillRect(Math.round(p[0]), Math.round(p[1]), w, h); };
+  const dk = C(shade(L.skin, 0.78));
+  const pw = torsoW(tLen * 0.68) / 2;
+  tseg(at(tLen * 0.66, pw * 0.05), at(tLen * 0.66, pw * 0.85), 1, 1, dk);
+  dot(at(tLen * 0.74, pw * 0.45), C(shade(L.skin, 0.62)));
+  for (const k of [0.3, 0.42, 0.54]) { dot(at(tLen * k, pw * 0.25), dk); dot(at(tLen * k, pw * 0.6), dk); }
+  tseg(at(tLen * 0.3, pw * 0.42), at(tLen * 0.58, pw * 0.42), 1, 1, dk);
+  dot(at(tLen * 0.9, -pw * 0.2), C(shade(L.skin, 1.18)), 2, 1);
   if (L.tattoo === 'chest') {
     ctx.fillStyle = C('#2c4a3a');
     const c0 = mid(J.hip, sh, 0.7);
@@ -365,6 +437,8 @@ function drawFighter(ctx, def, pose, X, Y, face, o = {}) {
   const sk = 5 * s;
   band(-3, sk, k => torsoW(k) + 1, C(L.shorts));
   band(sk, sk + 1.4, k => torsoW(k) + 1, C(L.shorts2));
+  tseg(at(-2, -torsoW(0) / 2 + 1), at(sk, -torsoW(sk) / 2 + 1), 1, 1, C(L.shorts2));
+  dot(at(1, torsoW(1) * 0.2), C(shade(L.shorts, 1.6)), 2, 1);
 
   leg(J.hip, J.fk, J.ff, L.skin, L.shorts);
 

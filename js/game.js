@@ -87,10 +87,17 @@ function updateParts() {
 }
 
 // ---------- Ввод ударов
-function pickMove(f, btn, fwd, down) {
-  if (btn === 'p') return down ? 'upper' : fwd ? 'cross' : 'jab';
-  if (f.def.boxer) return down ? 'bodyHook' : fwd ? 'overhand' : 'hook';
-  return down ? 'lowKick' : fwd ? 'highKick' : 'teep';
+function pickMove(f, btn, fwd, down, back) {
+  const box = f.def.boxer;
+  if (btn === 'p') {
+    if (down) return 'upper';
+    if (back) return box ? 'doubleJab' : 'backfist';
+    return fwd ? 'cross' : 'jab';
+  }
+  if (box) return down ? 'bodyHook' : back ? 'oneTwo' : fwd ? 'overhand' : 'hook';
+  if (down) return fwd ? 'bodyKick' : 'lowKick';
+  if (back) return 'spinKick';
+  return fwd ? 'highKick' : 'teep';
 }
 
 function setSt(f, s) { if (f.st !== s) { f.st = s; f.t = 0; } }
@@ -103,7 +110,7 @@ function startMove(f, id) {
     f.meter = 0;
     emit({ k: 'sp', side: f.side, text: f.def.spName });
     emit({ k: 'sfx', n: 'special' });
-  } else emit({ k: 'sfx', n: 'whoosh' });
+  } else emit({ k: 'sfx', n: m.whoosh || 'whoosh' });
 }
 
 const inLunge = f => f.mv && f.mv.lunge && f.mvT >= f.mv.lunge[0] && f.mvT <= f.mv.lunge[1];
@@ -121,8 +128,8 @@ function updFighter(f, o) {
     if (Math.abs(o.x - f.x) > 1) f.face = o.x > f.x ? 1 : -1;
     const fwd = fwdOf(), bk = backOf();
     if (pr('s') && f.meter >= 100) startMove(f, D.special);
-    else if (pr('p')) startMove(f, pickMove(f, 'p', fwd, I.d));
-    else if (pr('k')) startMove(f, pickMove(f, 'k', fwd, I.d));
+    else if (pr('p')) startMove(f, pickMove(f, 'p', fwd, I.d, bk));
+    else if (pr('k')) startMove(f, pickMove(f, 'k', fwd, I.d, bk));
     else if (I.b) { setSt(f, 'block'); f.crouchB = !!I.d; }
     else if (I.u) {
       f.st = 'jump'; f.t = 0; f.vy = -4.7; f.airUsed = false;
@@ -140,11 +147,12 @@ function updFighter(f, o) {
     f.mvT += D.spd;
     if (inLunge(f)) f.vx = m.lunge[2] * f.face;
     if (m.jump && t0 < m.jump[0] && f.mvT >= m.jump[0]) f.vy = m.jump[1];
-    if (f.landed && m.cancel && f.mvT >= m.cancel) {
-      const fwd = fwdOf();
+    if (m.chain && f.mvT >= m.chain.at && pr(m.chain.btn) && !I.d && !backOf()) startMove(f, m.chain.to);
+    else if (f.landed && m.cancel && f.mvT >= m.cancel) {
+      const fwd = fwdOf(), bk = backOf();
       if (pr('s') && f.meter >= 100) startMove(f, D.special);
-      else if (pr('p')) startMove(f, pickMove(f, 'p', fwd, I.d));
-      else if (pr('k')) startMove(f, pickMove(f, 'k', fwd, I.d));
+      else if (pr('p')) startMove(f, pickMove(f, 'p', fwd, I.d, bk));
+      else if (pr('k')) startMove(f, pickMove(f, 'k', fwd, I.d, bk));
     }
     if (f.st === 'attack' && f.mvT >= f.mv.len) {
       f.mv = null; f.mvId = null; f.airUsed = true;
@@ -341,7 +349,7 @@ function aiInput(me, op, ai) {
   }
   if (ai.blockT > 0 && me.st !== 'attack' && me.st !== 'jump') { ai.blockT--; I.b = 1; return I; }
   if (me.st === 'attack') {
-    if (me.landed && R() < P.combo * 0.2) I[R() < 0.6 ? 'p' : 'k'] = 1;
+    if ((me.landed || me.mv.chain) && R() < P.combo * 0.2) I[me.mv.chain ? 'p' : R() < 0.6 ? 'p' : 'k'] = 1;
     return I;
   }
   if (me.st === 'jump') { if (dist < 40 && R() < 0.1) I.k = 1; return I; }
@@ -361,9 +369,9 @@ function aiInput(me, op, ai) {
     const grabber = MOVES[m.special].grab;
     const spOK = grabber ? dist <= 28 * m.scale : dist <= 50;
     if (me.meter >= 100 && spOK && R() < P.sp) { I.s = 1; return I; }
-    const r = R();
-    if (r < 0.5) { const v = R(); if (v < 0.4) {} else if (v < 0.75) I[F] = 1; else I.d = 1; I.p = 1; }
-    else { const v = R(); if (v < 0.4) {} else if (v < 0.7) I[F] = 1; else I.d = 1; I.k = 1; }
+    const r = R(), v = R();
+    if (v < 0.35) {} else if (v < 0.6) I[F] = 1; else if (v < 0.78) I.d = 1; else if (v < 0.88) { I.d = 1; I[F] = 1; } else I[B] = 1;
+    I[r < 0.5 ? 'p' : 'k'] = 1;
     return I;
   }
   if (ai.plan === 'approach') { if (dist > reach - 6) I[F] = 1; if (R() < P.jump) { I.u = 1; I[F] = 1; } }

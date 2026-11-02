@@ -6,6 +6,7 @@ html, body {
   touch-action: manipulation; -webkit-touch-callout: none;
 }
 .hidden { display: none !important; }
+body.fighting, #touch, #touch *, #stage { touch-action: none; }
 
 #stage { position: absolute; image-rendering: pixelated; }
 #game { width: 100%; height: 100%; display: block; image-rendering: pixelated; image-rendering: crisp-edges; }
@@ -93,7 +94,7 @@ button.hot { background: #f2b51b; color: #1a1000; box-shadow: inset -4px -4px 0 
 
 /* ---------- Выбор бойца */
 .selwrap { display: flex; gap: 14px; flex-wrap: wrap; justify-content: center; align-items: flex-start; }
-#grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; width: min(480px, 100%); }
+#grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; width: min(540px, 100%); }
 .card { margin: 0; padding: 4px 2px 6px; background: #17142a; box-shadow: 0 0 0 3px #000, inset 0 0 0 2px #2c2650; display: flex; flex-direction: column; align-items: center; }
 .card canvas { width: 100%; max-width: 80px; image-rendering: pixelated; }
 .card span { font-size: 6px; margin-top: 4px; white-space: nowrap; overflow: hidden; max-width: 100%; }
@@ -108,6 +109,12 @@ button.hot { background: #f2b51b; color: #1a1000; box-shadow: inset -4px -4px 0 
 .st i.on { background: var(--yel); }
 #iStyle { font-size: 8px; margin: 10px 0 4px; }
 #iSp { font-size: 8px; color: var(--blue); margin: 0; }
+#iSong { font-size: 7px; color: #ff9a3c; margin: 6px 0 0; }
+#fsBtn {
+  position: absolute; top: calc(var(--u) * 20); left: calc(50% + var(--u) * 12); pointer-events: auto;
+  font-size: calc(var(--u) * 5); padding: calc(var(--u) * 1) calc(var(--u) * 2); margin: 0; box-shadow: none; background: #000a; border: 1px solid #ffffff44;
+}
+#pauseBtn { left: calc(50% - var(--u) * 6) !important; }
 
 #arenas { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 8px; width: min(720px, 100%); }
 .arena { margin: 0; padding: 4px; background: #17142a; box-shadow: 0 0 0 3px #000; display: flex; flex-direction: column; align-items: center; }

@@ -39,6 +39,18 @@ const Input = (() => {
   stick.addEventListener('pointerup', stickEnd);
   stick.addEventListener('pointercancel', stickEnd);
 
+  // iPhone приближает страницу от частых касаний — запрещаем
+  document.addEventListener('gesturestart', e => e.preventDefault(), { passive: false });
+  document.addEventListener('dblclick', e => e.preventDefault(), { passive: false });
+  let lastTouch = 0;
+  document.addEventListener('touchend', e => {
+    const now = performance.now();
+    if (document.body.classList.contains('fighting') && now - lastTouch < 450) e.preventDefault();
+    lastTouch = now;
+  }, { passive: false });
+  document.addEventListener('touchmove', e => { if (e.touches.length > 1 || document.body.classList.contains('fighting')) e.preventDefault(); }, { passive: false });
+  $('touch').addEventListener('touchstart', e => e.preventDefault(), { passive: false });
+
   document.querySelectorAll('.tb').forEach(b => {
     const k = b.dataset.k;
     const on = e => { touch[k] = 1; tapped[k] = 1; b.classList.add('on'); e.preventDefault(); if (navigator.vibrate) navigator.vibrate(8); };
@@ -68,6 +80,26 @@ const saveFlow = () => { try { localStorage.setItem('pml_flow', JSON.stringify({
 
 function show(id) {
   document.querySelectorAll('.screen').forEach(s => s.classList.toggle('hidden', s.id !== id));
+  if (id === 's-menu') Sound.music('menu');
+}
+
+// ---------- Полный экран (на iPhone — через «На экран Домой»)
+const fsEl = document.documentElement;
+const canFS = !!(fsEl.requestFullscreen || fsEl.webkitRequestFullscreen);
+const isFS = () => !!(document.fullscreenElement || document.webkitFullscreenElement);
+const standalone = matchMedia('(display-mode: fullscreen), (display-mode: standalone)').matches || navigator.standalone;
+let wantFS = true;
+function goFullscreen(force) {
+  if (!canFS || isFS() || standalone || (!force && !wantFS)) return;
+  try {
+    const r = (fsEl.requestFullscreen || fsEl.webkitRequestFullscreen).call(fsEl, { navigationUI: 'hide' });
+    if (r && r.then) r.then(() => { try { screen.orientation.lock('landscape').catch(() => {}); } catch (e) {} }).catch(() => {});
+  } catch (e) {}
+}
+function toggleFS() {
+  if (isFS()) { wantFS = false; (document.exitFullscreen || document.webkitExitFullscreen).call(document); }
+  else if (canFS) { wantFS = true; goFullscreen(true); }
+  else { UI.togglePause(true); show('s-ios'); }
 }
 function hideScreens() { document.querySelectorAll('.screen').forEach(s => s.classList.add('hidden')); }
 
@@ -114,7 +146,9 @@ function pickCard(i) {
     `<div class="st"><b>${lbl[k]}</b><span>${'<i class="on"></i>'.repeat(v)}${'<i></i>'.repeat(10 - v)}</span></div>`).join('');
   $('iStyle').textContent = f.style;
   $('iSp').textContent = '⚡ ' + f.spName;
+  $('iSong').textContent = '♪ ' + Sound.title(f.id);
   Sound.sfx('select');
+  Sound.music(f.id);
   prevAnim = { def: f, mv: null, mvT: 0, t: 0, n: 0 };
 }
 
@@ -132,7 +166,9 @@ function drawPreview() {
   c.imageSmoothingEnabled = false;
   p.t++;
   if (!p.mv && p.t > 40) {
-    const order = ['jab', 'cross', p.def.boxer ? 'hook' : 'highKick', p.def.boxer ? 'overhand' : 'teep', p.def.special];
+    const order = p.def.boxer
+      ? ['jab', 'cross', 'hook', 'doubleJab', 'overhand', 'oneTwo', p.def.special]
+      : ['jab', 'cross', 'highKick', 'backfist', 'bodyKick', 'spinKick', p.def.special];
     p.mv = MOVES[order[p.n++ % order.length]]; p.mvT = 0;
   }
   let pose;
@@ -188,7 +224,8 @@ function startFight(o) {
   newMatch(o);
   const me = o.mode === 'guest' ? 1 : 0, online = o.mode !== 'bot';
   [0, 1].forEach(i => { $('nm' + i).textContent = G.f[i].def.name + (online && i === me ? ' ★ТЫ' : ''); });
-  Sound.music('fight');
+  Sound.music(G.f[me].id);
+  goFullscreen();
 }
 
 function botFight() {
@@ -323,8 +360,9 @@ const UI = {
     if (d.t === 'hello' && Net.role === 'host') { Flow.p2 = d.fid; hostStart(); }
     else if (d.t === 'start' && Net.role === 'guest') startFight({ mode: 'guest', p1: d.p1, p2: d.p2, stage: d.stage });
   },
-  togglePause() {
+  togglePause(forceOn) {
     if (!G || G.mode === 'demo' || G.phase === 'over') return;
+    if (forceOn) { paused = G.mode === 'bot'; Input.clear(); return; }
     if ($('s-pause').classList.contains('hidden')) {
       paused = G.mode === 'bot';
       Input.clear();
@@ -353,8 +391,15 @@ function wire() {
   musicLbl();
   musicBtns.forEach(b => b.onclick = () => { Sound.setMuted(!Sound.muted); musicLbl(); });
 
+  $('mFs').classList.toggle('hidden', !!standalone);
+  $('mFs').onclick = toggleFS;
+  $('fsBtn').classList.toggle('hidden', !!standalone);
+  $('fsBtn').onclick = toggleFS;
+  $('iosBack').onclick = () => {
+    if (G && G.mode !== 'demo' && G.phase !== 'over') { paused = false; hideScreens(); } else show('s-menu');
+  };
   $('s-title').onclick = () => {
-    Sound.init(); Sound.music('menu'); Sound.sfx('confirm');
+    Sound.init(); Sound.music('menu'); Sound.sfx('confirm'); goFullscreen();
     if (Flow.room) show('s-join'); else show('s-menu');
   };
   $('mBot').onclick = () => {
@@ -403,7 +448,7 @@ function wire() {
       if (e.code === 'Enter' && !$('s-title').classList.contains('hidden')) $('s-title').click();
       return;
     }
-    const cols = 5, n = ROSTER.length;
+    const cols = getComputedStyle($('grid')).gridTemplateColumns.split(' ').length, n = ROSTER.length;
     const mv = { ArrowLeft: -1, ArrowRight: 1, ArrowUp: -cols, ArrowDown: cols }[e.code];
     if (mv) { pickCard((selIdx + mv + n) % n); e.preventDefault(); }
     if (e.code === 'Enter' || e.code === 'KeyJ') $('selOk').click();
