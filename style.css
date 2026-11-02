@@ -167,3 +167,5 @@ body:not(.portrait) #pad { width: 170px; height: 170px; }
 body:not(.portrait) .tb.s, body:not(.portrait) .tb.b { left: 53px; }
 body:not(.portrait) .tb.p, body:not(.portrait) .tb.k { top: 53px; }
 .credits { font-size: 7px !important; color: #aaa; }
+#hud.walk .side, #hud.walk #clock, #hud.walk #pauseBtn, #hud.walk #fsBtn { opacity: 0; }
+#hud.walk::after { content: 'ЛЮБАЯ КНОПКА — ПРОПУСТИТЬ'; position: absolute; bottom: calc(var(--u) * 3); left: 0; right: 0; text-align: center; font-size: calc(var(--u) * 3.5); color: #ffffffaa; }

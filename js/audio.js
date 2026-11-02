@@ -86,7 +86,7 @@ const Sound = (() => {
     C: ['C4', 'E4', 'G4'], Bb: ['A#3', 'D4', 'F4'], A: ['A3', 'C#4', 'E4'], Gm: ['G4', 'A#4', 'D5'], Eb: ['D#4', 'G4', 'A#4'],
     D: ['D4', 'F#4', 'A4'], Cm: ['C4', 'D#4', 'G4'], Ab: ['G#3', 'C4', 'D#4'], Fm: ['F4', 'G#4', 'C5'], Bbm: ['A#3', 'C#4', 'F4'],
     G7: ['G4', 'B4', 'F5'], C7: ['C4', 'E4', 'A#4'], D7: ['D4', 'F#4', 'C5'], Em: ['E4', 'G4', 'B4'], B: ['B3', 'D#4', 'F#4'],
-    Glo: ['G3', 'B3', 'D4'], Am5: ['A4', 'C#5', 'E5'],
+    Glo: ['G3', 'B3', 'D4'], Db: ['C#4', 'F4', 'G#4'], Am5: ['A4', 'C#5', 'E5'],
   };
   const S = (o) => ({ arpVol: 0.03, leadVol: 0.11, wave: 'square', ...o, lead: o.lead.map(bar), chords: o.chords.map(c => CH[c]) });
 
@@ -195,6 +195,17 @@ const Sound = (() => {
       bass: [0, null, 0, 12, null, 0, null, 12, 0, null, 0, 12, null, 0, 7, null],
       drums: ['k.h.s.hkk.h.s.h.'],
     }),
+    // бит боёв «Решающий раунд» — оригинальный хип-хоп: 808, хлопки, роллы, тёмный колокольчик
+    fight: S({
+      title: 'Решающий раунд', bpm: 92, hiphop: true,
+      lead: ['C5 - - - G#4 - - - F4 - G4 - G#4 - . .', 'F5 - - - D#5 - C#5 - C5 - - - . . . .',
+             'C#5 - - - F5 - - - G#5 - G5 - F5 - . .', 'E5 - - - G5 - - - C5 - - - . . . .',
+             'C5 - G#4 - C5 - D#5 - F5 - - - D#5 - C#5 -', 'C5 - - - G#4 - F4 - G#4 - - - . . . .',
+             'A#4 - C#5 - F5 - - - G#5 - - - G5 - F5 -', 'G5 - - - E5 - - - C5 - - - . . . .'],
+      chords: ['Fm', 'Db', 'Bbm', 'C', 'Fm', 'Db', 'Bbm', 'C'], roots: ['F1', 'C#2', 'A#1', 'C2', 'F1', 'C#2', 'A#1', 'C2'],
+      bass: [], b808: { 0: 6, 7: 3, 10: 6 },
+      drums: ['k.h.s.hkh.k.s.h.', 'k.h.s.hkh.kks.rr', 'k.h.s.hkh.k.s.ho', 'k.r.s.hkh.kksrrr'],
+    }),
   };
 
   // жёсткая версия: быстрее, двойная бочка, пауэр-аккорды
@@ -214,8 +225,55 @@ const Sound = (() => {
   };
   for (const k in HARD) Object.assign(SONGS[k], HARD[k]);
 
+  // подложка аккордами: мягкая пила через фильтр
+  function pad(notes, t, dur) {
+    notes.forEach(n => {
+      const o = ctx.createOscillator(), f = ctx.createBiquadFilter(), g = ctx.createGain();
+      o.type = 'sawtooth'; o.frequency.value = freq(n) / 2; o.detune.value = (Math.random() - 0.5) * 14;
+      f.type = 'lowpass'; f.frequency.value = 700;
+      g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(0.045, t + 0.4);
+      g.gain.setValueAtTime(0.045, t + dur - 0.3); g.gain.linearRampToValueAtTime(0.0001, t + dur);
+      o.connect(f); f.connect(g); g.connect(musicBus); o.start(t); o.stop(t + dur + 0.05);
+    });
+  }
+  // 808-бас: удар с провалом высоты и длинным хвостом
+  function b808(f, t, dur) {
+    const o = ctx.createOscillator(), g = ctx.createGain();
+    o.type = 'sine';
+    o.frequency.setValueAtTime(f * 2.5, t); o.frequency.exponentialRampToValueAtTime(f, t + 0.05);
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.75, t + 0.008);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur * 0.98);
+    o.connect(g); g.connect(musicBus); o.start(t); o.stop(t + dur + 0.02);
+    tone('sawtooth', f * 2, t, Math.min(dur, 0.3), 0.06, distBus);
+  }
+  function hipStep(s, b, k, t, sd) {
+    const tok = s.lead[b][k];
+    if (tok !== '-' && tok !== '.') {
+      let len = 1;
+      while (k + len < 16 && s.lead[b][k + len] === '-') len++;
+      const f = freq(tok);
+      tone('sine', f, t, len * sd * 1.05, 0.13, leadBus);
+      tone('triangle', f * 2, t, 0.18, 0.05, leadBus);
+      tone('sine', f * 3, t, 0.08, 0.02, leadBus);
+    }
+    if (k === 0) pad(s.chords[b % s.chords.length], t, sd * 16);
+    const L = s.b808[k];
+    if (L) b808(freq(s.roots[b % s.roots.length]), t, L * sd);
+    const dr = s.drums[b % s.drums.length][k];
+    if (dr === 'k') { tone('sine', 150, t, 0.16, 0.8, drumBus, 48); noise(t, 0.01, 0.5, drumBus, 'lowpass', 5000); }
+    if (dr === 's') {
+      [0, 0.012, 0.024].forEach(d => noise(t + d, 0.09, 0.45, drumBus, 'bandpass', 1400));
+      noise(t, 0.2, 0.25, drumBus, 'highpass', 2500); tone('triangle', 190, t, 0.07, 0.25, drumBus, 140);
+    }
+    if (dr === 'h') noise(t, 0.028, 0.13, drumBus, 'highpass', 9000);
+    if (dr === 'r') { noise(t, 0.02, 0.11, drumBus, 'highpass', 9000); noise(t + sd / 2, 0.02, 0.11, drumBus, 'highpass', 9000); }
+    if (dr === 'o') noise(t, 0.18, 0.1, drumBus, 'highpass', 7000);
+    if (k === 0 && b % 8 === 0) noise(t, 1.4, 0.12, drumBus, 'highpass', 5000);
+  }
+
   function playStep(i, t, sd) {
     const s = song, b = Math.floor(i / 16) % s.lead.length, k = i % 16;
+    if (s.hiphop) return hipStep(s, b, k, t, sd);
     const tok = s.lead[b][k];
     if (tok !== '-' && tok !== '.') {
       let len = 1;
@@ -280,8 +338,25 @@ const Sound = (() => {
     timer = setInterval(sched, 25);
   }
 
+  // голос ведущего — встроенный синтезатор речи
+  let ruVoice = null;
+  const hasTTS = 'speechSynthesis' in window;
+  const pickVoice = () => { const v = speechSynthesis.getVoices(); ruVoice = v.find(x => /^ru/i.test(x.lang)) || null; };
+  if (hasTTS) { pickVoice(); speechSynthesis.onvoiceschanged = pickVoice; }
+  function say(text) {
+    if (muted || quiet || !hasTTS) return;
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = 'ru-RU'; if (ruVoice) u.voice = ruVoice;
+    u.rate = 0.95; u.pitch = 0.55;
+    u.onstart = () => { player.volume = trackVol() * 0.3; };
+    u.onend = () => { player.volume = trackVol(); };
+    speechSynthesis.speak(u);
+  }
+  function hush() { if (hasTTS) speechSynthesis.cancel(); player.volume = trackVol(); }
+
   function music(name) {
     init(); if (!ctx) return;
+    if (name === 'fight') { player.pause(); trackName = null; chip('fight'); return; }
     if (!TRACKS[name]) name = 'menu';
     if (trackName === name) { if (player.paused && !document.hidden) player.play().catch(() => {}); return; }
     clearInterval(timer); timer = null; song = null;
@@ -318,6 +393,7 @@ const Sound = (() => {
       case 'bell':
         tone('sine', 1320, t, 1.2, 0.25, B); tone('sine', 2640, t, 0.8, 0.08, B);
         tone('sine', 1320, t + 0.18, 1.0, 0.2, B); break;
+      case 'crowd': noise(t, 2.4, 0.35, B, 'bandpass', 700); noise(t + 0.1, 2.0, 0.22, B, 'bandpass', 1800); break;
       case 'select': tone('square', 660, t, 0.06, 0.1, B); break;
       case 'confirm': tone('square', 523, t, 0.08, 0.12, B); tone('square', 784, t + 0.08, 0.14, 0.12, B); break;
       case 'win':
@@ -342,7 +418,7 @@ const Sound = (() => {
   });
 
   return {
-    init, music, stopMusic, sfx, setMuted,
+    init, music, stopMusic, sfx, setMuted, say, hush,
     title: name => (TRACKS[name] || TRACKS.menu) + ' — Kevin MacLeod',
     credits: () => Object.values(TRACKS),
     get muted() { return muted; },

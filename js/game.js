@@ -34,6 +34,10 @@ function newMatch(o) {
   };
   Sound.quiet = o.mode === 'demo';
   startRound();
+  if (o.mode !== 'demo') {
+    G.phase = 'walkout';
+    G.f[0].x = -30; G.f[1].x = 350;
+  }
 }
 
 function startRound() {
@@ -62,6 +66,9 @@ function applyFx(e) {
     case 'msg': if (!demo) UI.banner(e.text, e.big); break;
     case 'sp': if (!demo) UI.special(e.side, e.text); break;
     case 'combo': if (!demo) UI.combo(e.side, e.n); break;
+    case 'say': if (!demo) Sound.say(e.text); break;
+    case 'music': if (!demo) Sound.music(e.n); break;
+    case 'hush': Sound.hush(); break;
     case 'over': if (!demo) UI.matchOver(e.w); else setTimeout(() => G && G.mode === 'demo' && startDemo(), 600); break;
   }
 }
@@ -421,6 +428,61 @@ function drawFace(f) {
   return f.face;
 }
 
+// ---------- Выход бойцов и ведущий
+const WALK_END = 480;
+function annState(T) {
+  if (T >= 410) return { x: 160 + (T - 410) * 1.6, face: 1, pose: lerpPose(POSE.walk1, POSE.walk2, (Math.sin(T * 0.28) + 1) / 2) };
+  const p = POSE.annL.slice(); p[3] += Math.sin(T * 0.1);
+  return { x: 160, face: T < 230 ? 1 : -1, pose: p };
+}
+
+function walkout() {
+  const g = G, [a, b] = g.f, T = ++g.phaseT;
+  a.t++; b.t++;
+  if (g.mode !== 'guest' && T > 20) {
+    const I = Input.read();
+    if (I.p || I.k || I.s || I.b) { endWalkout(); return; }
+  }
+  const walkTo = (f, x) => {
+    const d = Math.sign(x - f.x);
+    if (Math.abs(x - f.x) > 1.3) { if (f.st !== 'walk') { f.st = 'walk'; f.t = 0; } f.face = d; f.x += d * 1.2; }
+    else if (f.st === 'walk') { f.x = x; f.st = 'idle'; f.t = 0; }
+  };
+  const ia = INTRO[a.id] || ['', a.def.name], ib = INTRO[b.id] || ['', b.def.name];
+  if (T === 1) {
+    emit({ k: 'msg', text: 'ДАМЫ И ГОСПОДА!' });
+    emit({ k: 'say', text: 'Дамы и господа! Главный бой вечера!' });
+    emit({ k: 'sfx', n: 'crowd' });
+  }
+  if (T === 50) {
+    emit({ k: 'music', n: a.id });
+    emit({ k: 'msg', text: 'В КРАСНОМ УГЛУ' });
+    emit({ k: 'say', text: 'В красном углу! ' + ia[0] + '! ' + ia[1] + '!' });
+  }
+  if (T >= 50 && T < 170) walkTo(a, 108);
+  if (T === 170) { a.x = 108; a.st = 'win'; a.t = 0; emit({ k: 'msg', text: a.def.name + ' «' + a.def.nick.toUpperCase() + '»', big: 0 }); emit({ k: 'sfx', n: 'crowd' }); }
+  if (T === 225) { a.st = 'idle'; a.face = 1; a.t = 0; }
+  if (T === 230) {
+    emit({ k: 'music', n: b.id });
+    emit({ k: 'msg', text: 'В СИНЕМ УГЛУ' });
+    emit({ k: 'say', text: 'В синем углу! ' + ib[0] + '! ' + ib[1] + '!' });
+  }
+  if (T >= 230 && T < 350) walkTo(b, 212);
+  if (T === 350) { b.x = 212; b.st = 'win'; b.t = 0; emit({ k: 'msg', text: b.def.name + ' «' + b.def.nick.toUpperCase() + '»' }); emit({ k: 'sfx', n: 'crowd' }); }
+  if (T === 405) { b.st = 'idle'; b.face = -1; b.t = 0; }
+  if (T === 410) { emit({ k: 'msg', text: 'ДА НАЧНЁТСЯ БИТВА!' }); emit({ k: 'say', text: 'Да начнётся битва!' }); }
+  if (T >= WALK_END) endWalkout();
+}
+
+function endWalkout() {
+  const [a, b] = G.f;
+  Object.assign(a, { x: 108, face: 1, st: 'idle', t: 0 });
+  Object.assign(b, { x: 212, face: -1, st: 'idle', t: 0 });
+  emit({ k: 'hush' });
+  emit({ k: 'music', n: 'fight' });
+  G.phase = 'intro'; G.phaseT = 0;
+}
+
 // ---------- Раунды
 function endRound(w, txt) {
   G.phase = 'ko'; G.phaseT = 0; G.winner = w;
@@ -467,6 +529,7 @@ function step() {
   g.frame++;
   if (g.hitstop > 0) { g.hitstop--; updateParts(); return; }
   if (g.slow > 0) { g.slow--; if (g.slow % 3) { updateParts(); return; } }
+  if (g.phase === 'walkout') { walkout(); updateParts(); return; }
   const [a, b] = g.f;
   if (g.phase === 'fight') {
     a.inp = g.mode === 'demo' ? aiInput(a, b, g.ai[0]) : Input.read();
@@ -499,7 +562,7 @@ function onNetData(d) {
   if (d.t === 'i' && G && G.mode === 'host') G.remote = decIn(d.v);
   else if (d.t === 's' && G && G.mode === 'guest') {
     applySnapF(G.f[0], d.a); applySnapF(G.f[1], d.b);
-    G.timer = d.tm; G.round = d.rd; G.wins = d.w; G.phase = d.ph;
+    G.timer = d.tm; G.round = d.rd; G.wins = d.w; G.phase = d.ph; G.phaseT = d.pt;
     d.fx.forEach(applyFx);
   } else UI.onNet(d);
 }
@@ -522,7 +585,7 @@ function tick() {
   if (paused) return;
   step();
   if (G.mode === 'host') {
-    netSend({ t: 's', a: snapF(G.f[0]), b: snapF(G.f[1]), tm: G.timer, rd: G.round, w: G.wins, ph: G.phase, fx: G.fx });
+    netSend({ t: 's', a: snapF(G.f[0]), b: snapF(G.f[1]), tm: G.timer, rd: G.round, w: G.wins, ph: G.phase, pt: G.phaseT, fx: G.fx });
     G.fx = [];
   }
 }
@@ -543,6 +606,11 @@ function render(now) {
       c.fillStyle = 'rgba(0,0,0,0.35)';
       c.fillRect(Math.round(f.x - w / 2), GROUND - 1, w, 2);
       c.fillRect(Math.round(f.x - w / 2) + 3, GROUND + 1, w - 6, 1);
+    }
+    if (G.phase === 'walkout') {
+      const A = annState(G.phaseT);
+      c.fillStyle = 'rgba(0,0,0,0.35)'; c.fillRect(Math.round(A.x) - 10, GROUND - 1, 20, 2);
+      drawFighter(c, ANNOUNCER, A.pose, A.x, GROUND, A.face, { mic: true });
     }
     const pri = f => (['held', 'down', 'ko'].includes(f.st) ? 0 : ['attack', 'grab'].includes(f.st) ? 2 : 1);
     [...G.f].sort((p, q) => pri(p) - pri(q)).forEach(f => {

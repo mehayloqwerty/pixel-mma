@@ -103,6 +103,28 @@ const ROSTER = [
 ];
 const FIGHTER = Object.fromEntries(ROSTER.map(f => [f.id, f]));
 
+// как ведущий объявляет бойца
+const INTRO = {
+  khabib: ['из Махачкалы, Дагестан', 'Хабиб «Орёл» Нурмагомедов'],
+  oliveira: ['из Гуаружи, Бразилия', 'Чарльз «До Бронкс» Оливейра'],
+  jones: ['из Рочестера, США', 'Джон «Кости» Джонс'],
+  tyson: ['из Бруклина, Нью-Йорк', 'Майк «Железный» Тайсон'],
+  tsarukyan: ['из Ахалкалаки', 'Арман Царукян'],
+  mcgregor: ['из Дублина, Ирландия', 'Конор «Ноториус» Макгрегор'],
+  adesanya: ['из Окленда, Новая Зеландия', 'Исраэль «Стилбендер» Адесанья'],
+  poirier: ['из Лафайета, Луизиана', 'Дастин «Бриллиант» Порье'],
+  ngannou: ['из Камеруна', 'Фрэнсис «Хищник» Нганну'],
+  usyk: ['из Симферополя, Украина', 'Александр «Кот» Усик'],
+  pimblett: ['из Ливерпуля, Англия', 'Пэдди «Бадди» Пимблетт'],
+};
+
+// ведущий в смокинге
+const ANNOUNCER = {
+  id: 'announcer', scale: 1.0, bulk: 0.95,
+  look: { skin: '#e3b48f', skinD: '#b88a68', hair: '#b9b9b9', hairStyle: 'short', beard: 'none',
+          suit: '#16161e', pants: '#16161e', shorts: '#16161e', shorts2: '#16161e', gloves: '#e3b48f', shoes: '#050505' },
+};
+
 // ---- Позы: 10 суставов (x вперёд, y вверх отрицательный), начало — между ступнями
 // порядок: таз, шея, локоть/кисть передней руки, локоть/кисть задней, колено/стопа передней ноги, задней
 const P = (...a) => a;
@@ -155,6 +177,8 @@ const POSE = {
   bfist:  P(2,-30, 8,-50, 20,-51, 31,-50, 6,-40, 10,-46, 9,-15, 12,0, -4,-15, -9,0),
   shk:    P(-1,-33, -11,-46, -2,-42, 2,-48, -8,-40, -4,-46, -1,-16, -1,0, 16,-44, 35,-52),
   bodyK:  P(0,-31, -6,-49, 4,-43, 8,-50, -2,-40, -5,-46, 3,-16, 4,0, 15,-32, 31,-34),
+  annL:   P(0,-31, 0,-51, 6,-44, 4,-56, -10,-48, -22,-52, 3,-15, 4,0, -3,-15, -4,0),
+  annR:   P(0,-31, 0,-51, 10,-48, 22,-52, -2,-44, -4,-56, 3,-15, 4,0, -3,-15, -4,0),
   peekW2: P(0,-24, 2,-41, 9,-37, 11,-45, 5,-34, 8,-43, 11,-12, 10,0, -6,-11, -12,0),
 };
 
@@ -397,8 +421,9 @@ function drawFighter(ctx, def, pose, X, Y, face, o = {}) {
   };
 
   // задние конечности темнее
-  leg(J.hip, J.bk, J.bf, L.skinD, shade(L.shorts, 0.75));
-  arm(sh, J.be, J.bh, L.skinD, shade(L.gloves, 0.75));
+  const suit = L.suit, legC = suit ? L.pants : L.skin, armC = suit ? L.suit : L.skin;
+  leg(J.hip, J.bk, J.bf, suit ? shade(legC, 0.8) : L.skinD, shade(L.shorts, 0.75));
+  arm(sh, J.be, J.bh, suit ? shade(armC, 0.8) : L.skinD, shade(L.gloves, 0.75));
 
   // торс: поперечные штрихи от таза к плечам, грудь шире талии
   const tLen = Math.hypot(sh[0] - J.hip[0], sh[1] - J.hip[1]);
@@ -410,15 +435,21 @@ function drawFighter(ctx, def, pose, X, Y, face, o = {}) {
   };
   const torsoW = k => torW * (0.82 + 0.3 * Math.min(1, Math.max(0, k / tLen)));
   band(-2, tLen + 2, k => torsoW(k) + 2, C(OUTLINE));
-  band(-1, tLen + 1, torsoW, C(L.skin));
+  band(-1, tLen + 1, torsoW, C(suit ? L.suit : L.skin));
   const hl = torW / 4;
   seg(ctx, J.hip[0] + fwd[0] * hl + up[0] * 5, J.hip[1] + fwd[1] * hl + up[1] * 5,
       sh[0] + fwd[0] * hl - up[0] * 2, sh[1] + fwd[1] * hl - up[1] * 2, 2, C(shade(L.skin, 1.12)));
   seg(ctx, J.hip[0] - fwd[0] * (hl + 1) + up[0] * 4, J.hip[1] - fwd[1] * (hl + 1) + up[1] * 4,
       sh[0] - fwd[0] * (hl + 1) - up[0] * 2, sh[1] - fwd[1] * (hl + 1) - up[1] * 2, 2, C(L.skinD));
-  // мышцы: грудь, пресс, плечо
+  if (suit) {
+    // рубашка и бабочка
+    for (let k = tLen * 0.55; k <= tLen + 1; k += 0.7) seg(ctx, J.hip[0] + up[0] * k + fwd[0] * 2, J.hip[1] + up[1] * k + fwd[1] * 2, J.hip[0] + up[0] * k + fwd[0] * 3, J.hip[1] + up[1] * k + fwd[1] * 3, 2, C('#f2f2f2'));
+    seg(ctx, J.hip[0] + up[0] * (tLen - 1) + fwd[0] * 1, J.hip[1] + up[1] * (tLen - 1) + fwd[1] * 1, J.hip[0] + up[0] * (tLen - 1) + fwd[0] * 4, J.hip[1] + up[1] * (tLen - 1) + fwd[1] * 4, 2, C('#a01818'));
+  }
   const at = (k, f) => [J.hip[0] + up[0] * k + fwd[0] * f, J.hip[1] + up[1] * k + fwd[1] * f];
   const dot = (p, col, w = 1, h = 1) => { ctx.fillStyle = col; ctx.fillRect(Math.round(p[0]), Math.round(p[1]), w, h); };
+  // мышцы: грудь, пресс, плечо
+  if (!suit) {
   const dk = C(shade(L.skin, 0.78));
   const pw = torsoW(tLen * 0.68) / 2;
   tseg(at(tLen * 0.66, pw * 0.05), at(tLen * 0.66, pw * 0.85), 1, 1, dk);
@@ -433,19 +464,26 @@ function drawFighter(ctx, def, pose, X, Y, face, o = {}) {
     const c1 = mid(J.hip, sh, 0.45);
     ctx.fillRect(Math.round(c1[0] + 1), Math.round(c1[1]), 2, 1);
   }
+  }
   // шорты
   const sk = 5 * s;
+  if (!suit) {
   band(-3, sk, k => torsoW(k) + 1, C(L.shorts));
   band(sk, sk + 1.4, k => torsoW(k) + 1, C(L.shorts2));
   tseg(at(-2, -torsoW(0) / 2 + 1), at(sk, -torsoW(sk) / 2 + 1), 1, 1, C(L.shorts2));
   dot(at(1, torsoW(1) * 0.2), C(shade(L.shorts, 1.6)), 2, 1);
+  }
 
-  leg(J.hip, J.fk, J.ff, L.skin, L.shorts);
+  leg(J.hip, J.fk, J.ff, legC, L.shorts);
 
   const hc = [J.neck[0] + up[0] * (R + 1), J.neck[1] + up[1] * (R + 1)];
   drawHead(ctx, Math.round(hc[0]), Math.round(hc[1]), R, up, L, o, C);
 
-  arm(sh, J.fe, J.fh, L.skin, L.gloves);
+  arm(sh, J.fe, J.fh, armC, L.gloves);
+  if (o.mic) {
+    ctx.fillStyle = C('#111'); ctx.fillRect(Math.round(J.fh[0]) + 1, Math.round(J.fh[1]) - 4, 2, 5);
+    ctx.fillStyle = C('#9a9aa6'); ctx.fillRect(Math.round(J.fh[0]), Math.round(J.fh[1]) - 6, 4, 3);
+  }
   ctx.restore();
 }
 

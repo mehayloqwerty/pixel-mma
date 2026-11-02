@@ -222,7 +222,6 @@ function startFight(o) {
   newMatch(o);
   const me = o.mode === 'guest' ? 1 : 0, online = o.mode !== 'bot';
   [0, 1].forEach(i => { $('nm' + i).textContent = G.f[i].def.name + (online && i === me ? ' ★ТЫ' : ''); });
-  Sound.music(G.f[me].id);
   goFullscreen();
 }
 
@@ -341,6 +340,7 @@ const UI = {
       $('wn' + i).textContent = '★'.repeat(g.wins[i]) + '☆'.repeat(Math.max(0, 2 - g.wins[i]));
     });
     $('clock').textContent = Math.ceil(g.timer / 60);
+    $('hud').classList.toggle('walk', g.phase === 'walkout');
   },
   matchOver(w) {
     const me = G.mode === 'guest' ? 1 : 0;
