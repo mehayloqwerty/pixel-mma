@@ -175,3 +175,5 @@ body:not(.portrait) .tb.p, body:not(.portrait) .tb.k { top: 53px; }
 #clinch .cl i { display: block; height: 100%; transition: width .08s; }
 #cl0 { background: #e8a512; } #cl1 { background: #3ab0ff; }
 #banner.long { font-size: calc(var(--u) * 7); padding: 0 calc(var(--u) * 4); line-height: 1.5; }
+#nickIn { width: min(320px, 90%); font-family: inherit; font-size: 14px; padding: 14px; background: #000; color: var(--yel); border: 3px solid #444; text-align: center; margin: 10px 0; text-transform: uppercase; }
+.profile { color: var(--yel); font-size: 10px; margin: 0 0 6px; }

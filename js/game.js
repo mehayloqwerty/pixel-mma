@@ -33,6 +33,9 @@ function newMatch(o) {
     ai: [makeAI(o.mode === 'demo' ? 1 : 0), makeAI(o.diff ?? 1)],
   };
   Sound.quiet = o.mode === 'demo';
+  const buff = o.mode === 'bot' && AIP[G.diff] && AIP[G.diff].buff;
+  if (buff) { G.f[1].maxHp = Math.round(G.f[1].def.hp * buff.hp); G.f[1].dmgMul = buff.dmg; }
+  G.nicks = o.nicks || ['', ''];
   startRound();
   if (o.mode !== 'demo') {
     G.phase = 'walkout';
@@ -70,7 +73,7 @@ function applyFx(e) {
     case 'say': if (!demo) Sound.say(e.text); break;
     case 'music': if (!demo) Sound.music(e.n); break;
     case 'hush': Sound.hush(); break;
-    case 'over': if (!demo) UI.matchOver(e.w); else setTimeout(() => G && G.mode === 'demo' && startDemo(), 600); break;
+    case 'over': if (!demo) UI.matchOver(e.w, e.ko); else setTimeout(() => G && G.mode === 'demo' && startDemo(), 600); break;
   }
 }
 
@@ -132,6 +135,7 @@ const inLunge = f => f.mv && f.mv.lunge && f.mvT >= f.mv.lunge[0] && f.mvT <= f.
 function updFighter(f, o) {
   const I = f.inp, pr = k => I[k] && !f.prev[k];
   f.t++;
+  if (!I.u) f.jumpLock = false; // чтобы прыгнуть снова, отпусти вверх
   if (f.flash > 0) f.flash--;
   if (f.inv > 0) f.inv--;
   const D = f.def, air = f.y < GROUND;
@@ -149,8 +153,8 @@ function updFighter(f, o) {
     else if (pr('p')) startMove(f, pickMove(f, 'p', fwd, I.d, bk, near));
     else if (pr('k')) startMove(f, pickMove(f, 'k', fwd, I.d, bk, near));
     else if (I.b) { setSt(f, 'block'); f.crouchB = !!I.d; }
-    else if (I.u) {
-      f.st = 'jump'; f.t = 0; f.vy = -4.7; f.airUsed = false;
+    else if (pr('u') && !f.jumpLock) {
+      f.st = 'jump'; f.t = 0; f.vy = -4.4; f.airUsed = false; f.jumpLock = true;
       f.vx = (fwd ? 1.7 : bk ? -1.5 : 0) * f.face;
       emit({ k: 'sfx', n: 'jump' });
     }
@@ -159,6 +163,8 @@ function updFighter(f, o) {
     else if (bk) { setSt(f, 'walk'); f.vx = -1.0 * D.walk * f.face; }
     else setSt(f, 'idle');
   } else if (f.st === 'jump') {
+    // отпустил вверх сразу — короткий подскок
+    if (!I.u && f.t < 7 && f.vy < -1.5) f.vy *= 0.6;
     if (!f.airUsed && (pr('p') || pr('k'))) {
       f.airUsed = true;
       const fw = fwdOf();
@@ -183,6 +189,8 @@ function updFighter(f, o) {
       f.mv = null; f.mvId = null; f.airUsed = true;
       setSt(f, air ? 'jump' : 'idle');
     }
+  } else if (f.st === 'land') {
+    if (f.t >= 9) setSt(f, 'idle');
   } else if (f.st === 'hit') {
     if (--f.stun <= 0 && !air) setSt(f, 'idle');
   } else if (f.st === 'down') {
@@ -210,7 +218,7 @@ function updFighter(f, o) {
 }
 
 function land(f) {
-  if (f.st === 'jump') { setSt(f, 'idle'); emit({ k: 'dust', x: f.x }); emit({ k: 'sfx', n: 'land' }); }
+  if (f.st === 'jump') { setSt(f, 'land'); f.vx *= 0.3; emit({ k: 'dust', x: f.x }); emit({ k: 'sfx', n: 'land' }); }
   else if (f.st === 'attack' && f.mv.air) { f.mv = null; f.mvId = null; setSt(f, 'idle'); emit({ k: 'dust', x: f.x }); }
   else if (f.st === 'down' || f.st === 'ko') { emit({ k: 'dust', x: f.x }); emit({ k: 'shake', v: 2 }); }
 }
@@ -297,7 +305,7 @@ function checkHits(a, d) {
 
 function applyHit(a, d, h, m, pt, zone = 'body') {
   const mul = m.cat === 'p' ? a.def.pMul : m.cat === 'k' ? a.def.kMul : 1;
-  let dmg = h.dmg * mul * ZONE[zone];
+  let dmg = h.dmg * mul * ZONE[zone] * (a.dmgMul || 1);
   if (zone === 'arm') h = { ...h, stun: Math.round(h.stun * 0.6), kd: false };
   const facing = d.face === Math.sign(a.x - d.x);
   if (d.st === 'block' && facing) {
@@ -470,7 +478,12 @@ const AIP = [
   { blk: 0.18, agg: 0.025, react: 0.3, jump: 0.003, sp: 0.3, combo: 0.1 },
   { blk: 0.42, agg: 0.05, react: 0.6, jump: 0.004, sp: 0.6, combo: 0.35 },
   { blk: 0.68, agg: 0.085, react: 0.85, jump: 0.005, sp: 0.9, combo: 0.7 },
+  { blk: 0.78, agg: 0.11, react: 0.9, jump: 0.005, sp: 0.95, combo: 0.82 },                          // сложный
+  { blk: 0.86, agg: 0.13, react: 0.95, jump: 0.005, sp: 1, combo: 0.92 },                            // ультра
+  { blk: 0.9, agg: 0.15, react: 1, jump: 0.006, sp: 1, combo: 1, buff: { hp: 1.25, dmg: 1.1 } },      // хардкор
+  { blk: 0.94, agg: 0.18, react: 1, jump: 0.006, sp: 1, combo: 1, buff: { hp: 1.5, dmg: 1.25 } },     // безумный
 ];
+const CLINCH_MASH = [0.16, 0.26, 0.38, 0.45, 0.52, 0.58, 0.66];
 function makeAI(diff) { return { diff, plan: 'approach', planT: 0, blockT: 0, lastSeq: -1 }; }
 
 function aiInput(me, op, ai) {
@@ -479,7 +492,7 @@ function aiInput(me, op, ai) {
   const F = dx > 0 ? 'r' : 'l', B = dx > 0 ? 'l' : 'r';
   const R = Math.random;
   if (me.st === 'held') { if (R() < P.react * 0.35) I[R() < 0.5 ? 'p' : 'k'] = 1; return I; }
-  if (me.st === 'clinch') { if (R() < [0.16, 0.26, 0.38][ai.diff]) I[R() < 0.5 ? 'p' : 'k'] = 1; return I; }
+  if (me.st === 'clinch') { if (R() < CLINCH_MASH[ai.diff]) I[R() < 0.5 ? 'p' : 'k'] = 1; return I; }
   if (['down', 'ko', 'hit', 'grab', 'win'].includes(me.st)) return I;
   if (op.st === 'attack' && op.atkSeq !== ai.lastSeq) {
     ai.lastSeq = op.atkSeq;
@@ -528,6 +541,7 @@ function getPose(f) {
     case 'crouch': return POSE.crouch;
     case 'block': return f.crouchB ? POSE.cblock : POSE.block;
     case 'jump': return POSE.jump;
+    case 'land': return lerpPose(POSE.crouch, POSE.idle, f.t / 9);
     case 'attack': return f.mv ? keyPose(f.mv.keys, f.mvT) : POSE.idle;
     case 'hit': return POSE.hit;
     case 'down': case 'ko': {
@@ -664,6 +678,7 @@ function endWalkout() {
 function endRound(w, txt) {
   G.phase = 'ko'; G.phaseT = 0; G.winner = w;
   emit({ k: 'msg', text: txt, big: 1 });
+  G.lastKO = txt === 'K.O.!';
   if (txt === 'K.O.!') { emit({ k: 'sfx', n: 'ko' }); G.slow = 60; }
   else emit({ k: 'sfx', n: 'bell' });
 }
@@ -695,7 +710,7 @@ function phaseLogic() {
     if (g.phaseT === 230) {
       if (g.wins[0] >= 2 || g.wins[1] >= 2 || g.round >= 5) {
         g.phase = 'over';
-        emit({ k: 'over', w: g.wins[0] > g.wins[1] ? 0 : g.wins[1] > g.wins[0] ? 1 : -1 });
+        emit({ k: 'over', w: g.wins[0] > g.wins[1] ? 0 : g.wins[1] > g.wins[0] ? 1 : -1, ko: g.lastKO ? 1 : 0 });
       } else { g.round++; startRound(); }
     }
   }
@@ -735,7 +750,13 @@ function applySnapF(f, s) {
   f.mvId = mv || null; f.mv = mv ? MOVES[mv] : null; f.gkind = gk || null; f.crouchB = !!cb;
 }
 
-function netSend(o) { try { if (Net.conn && Net.conn.open) Net.conn.send(o); } catch (e) {} }
+function netSend(o) {
+  try {
+    if (Net.p2p && Net.p2p.open && (o.t === 's' || o.t === 'i')) { Net.p2p.send(o); return; }
+    if (Net.conn && Net.conn.open) Net.conn.send(o);
+  } catch (e) {}
+}
+const netEvery = () => (Net.p2p && Net.p2p.open ? 2 : 7);
 
 function onNetData(d) {
   if (!d || !d.t) return;
@@ -755,7 +776,8 @@ function onNetData(d) {
 function cleanupNet() {
   try { Net.conn && Net.conn.close(); } catch (e) {}
   try { Net.peer && Net.peer.destroy(); } catch (e) {}
-  Net.peer = Net.conn = Net.role = null;
+  try { Net.p2pPeer && Net.p2pPeer.destroy(); } catch (e) {}
+  Net.peer = Net.conn = Net.role = Net.p2p = Net.p2pPeer = null;
 }
 
 // ---------- Цикл
@@ -772,7 +794,7 @@ function tick() {
     Net.latch = (Net.latch || 0) | v;
     Net.count = (Net.count || 0) + ((edges & 0xF0) ? 1 : 0);
     Net.lastIn = v;
-    if (Net.tick % 7 === 0) { netSend({ t: 'i', v, l: Net.latch, c: Net.count }); Net.latch = 0; Net.count = 0; }
+    if (Net.tick % netEvery() === 0) { netSend({ t: 'i', v, l: Net.latch, c: Net.count }); Net.latch = 0; Net.count = 0; }
     // между пакетами двигаем бойцов сами — без рывков
     for (const f of G.f) {
       f.t++;
@@ -784,7 +806,7 @@ function tick() {
   }
   if (paused) return;
   step();
-  if (G.mode === 'host' && Net.tick % 7 === 0) {
+  if (G.mode === 'host' && Net.tick % netEvery() === 0) {
     netSend({ t: 's', a: snapF(G.f[0]), b: snapF(G.f[1]), tm: G.timer, rd: G.round, w: G.wins, ph: G.phase, pt: G.phaseT, cl: G.clinch ? [G.clinch.n[0], G.clinch.n[1], G.clinch.t] : 0, fx: G.fx });
     G.fx = [];
   }

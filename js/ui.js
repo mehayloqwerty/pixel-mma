@@ -26,7 +26,7 @@ const Input = (() => {
     knob.style.transform = `translate(${nx * m}px, ${ny * m}px)`;
     const vx = dx / r, vy = dy / r;
     touch.l = vx < -0.32 ? 1 : 0; touch.r = vx > 0.32 ? 1 : 0;
-    touch.u = vy < -0.5 ? 1 : 0; touch.d = vy > 0.45 ? 1 : 0;
+    touch.u = vy < -0.62 ? 1 : 0; touch.d = vy > 0.45 ? 1 : 0;
   };
   const stickMove = e => {
     if (e.pointerId !== sid) return;
@@ -206,7 +206,7 @@ function buildSetup() {
   buildDiffs();
 }
 function buildDiffs() {
-  ['ЛЁГКИЙ', 'БОЕЦ', 'ЧЕМПИОН'].forEach((t, i) => {
+  DIFFS.forEach((t, i) => {
     const b = document.createElement('button'); b.textContent = t; b.className = 'diff';
     b.onclick = () => { Flow.diff = i; refreshSetup(); Sound.sfx('select'); };
     $('diffs').appendChild(b);
@@ -218,6 +218,17 @@ function refreshSetup() {
 }
 
 // ---------- Старт боя
+// ---------- Профиль: ник и рекорд как в UFC (победы-поражения-ничьи)
+const DIFFS = ['ЛЁГКИЙ', 'БОЕЦ', 'ЧЕМПИОН', 'СЛОЖНЫЙ', 'УЛЬТРА', 'ХАРДКОР', 'БЕЗУМНЫЙ'];
+const Profile = { nick: '', w: 0, l: 0, d: 0, ko: 0 };
+try { Object.assign(Profile, JSON.parse(localStorage.getItem('pml_profile') || '{}')); } catch (e) {}
+const saveProfile = () => { try { localStorage.setItem('pml_profile', JSON.stringify(Profile)); } catch (e) {} };
+const recordText = () => Profile.w + '-' + Profile.l + '-' + Profile.d + (Profile.ko ? ' (' + Profile.ko + ' KO)' : '');
+function refreshProfile() {
+  $('profileLine').textContent = Profile.nick ? '👤 ' + Profile.nick + ' · ' + recordText() : '';
+  $('nickRecord').textContent = Profile.nick ? 'РЕКОРД: ' + recordText() : 'Ник — это твой аккаунт: под ним считаются победы и поражения.';
+}
+
 function startFight(o) {
   Input.clear();
   paused = false;
@@ -228,7 +239,10 @@ function startFight(o) {
   newMatch(o);
   Net.lastRx = performance.now();
   const me = o.mode === 'guest' ? 1 : 0, online = o.mode !== 'bot';
-  [0, 1].forEach(i => { $('nm' + i).textContent = G.f[i].def.name + (online && i === me ? ' ★ТЫ' : ''); });
+  [0, 1].forEach(i => {
+    const nk = (G.nicks && G.nicks[i]) || '';
+    $('nm' + i).textContent = (nk ? nk + ' · ' : '') + G.f[i].def.name + (online && i === me ? ' ★' : '');
+  });
   goFullscreen();
   Sound.unlockVoice();
 }
@@ -237,7 +251,7 @@ function botFight() {
   Flow.mode = 'bot';
   const stage = 0;
   saveFlow();
-  startFight({ mode: 'bot', p1: Flow.p1, p2: Flow.p2, stage, diff: Flow.diff });
+  startFight({ mode: 'bot', p1: Flow.p1, p2: Flow.p2, stage, diff: Flow.diff, nicks: [Profile.nick, 'БОТ ' + DIFFS[Flow.diff]] });
 }
 
 // ---------- Онлайн
@@ -280,11 +294,30 @@ function hostRoom() {
     $('link').value = location.origin + location.pathname + '?room=' + room + '&b=' + bi;
     if (!G || G.mode !== 'host') $('hostStatus').textContent = 'ЖДЁМ ДРУГА...';
   });
+  tryP2P(room, true);
+}
+
+// пробуем прямое соединение телефон-телефон: если пробьётся — лагов почти нет, иначе остаёмся на посреднике
+function tryP2P(room, host) {
+  if (typeof Peer === 'undefined') return;
+  try {
+    const cfg = { debug: 0, config: { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }, { urls: 'stun:global.stun.twilio.com:3478' }] } };
+    const peer = Net.p2pPeer = host ? new Peer('pml-' + room, cfg) : new Peer(cfg);
+    const bind = c => {
+      c.on('open', () => { if (Net.p2pPeer === peer) Net.p2p = c; });
+      c.on('data', d => { Net.lastRx = performance.now(); onNetData(d); });
+      c.on('close', () => { if (Net.p2p === c) Net.p2p = null; });
+      c.on('error', () => {});
+    };
+    peer.on('error', () => {});
+    if (host) peer.on('connection', bind);
+    else peer.on('open', () => bind(peer.connect('pml-' + room, { serialization: 'json', reliable: false })));
+  } catch (e) {}
 }
 
 function hostStart() {
   const stage = 0;
-  Net.lastStart = { t: 'start', p1: Flow.p1, p2: Flow.p2, stage };
+  Net.lastStart = { t: 'start', p1: Flow.p1, p2: Flow.p2, stage, nicks: [Profile.nick, Net.guestNick || 'ДРУГ'] };
   Net.guestSeen = false;
   netSend(Net.lastStart);
   startFight({ mode: 'host', p1: Flow.p1, p2: Flow.p2, stage });
@@ -304,7 +337,7 @@ function joinRoom() {
     // стучимся, пока друг не начнёт бой (он мог выйти в мессенджер)
     const knock = () => {
       if (Net.conn !== r || (G && G.mode === 'guest')) return;
-      r.send({ t: 'hello', fid: Flow.p1 });
+      r.send({ t: 'hello', fid: Flow.p1, nick: Profile.nick });
       n++;
       $('waitTxt').textContent = n < 4 ? 'ИЩУ ДРУГА В КОМНАТЕ...' : 'ЖДЁМ ДРУГА... ПУСТЬ ВЕРНЁТСЯ В ИГРУ';
       if (n > 60) { $('waitTxt').textContent = 'ДРУГ НЕ ОТВЕЧАЕТ. ПУСТЬ ОТКРОЕТ ИГРУ И ПРИШЛЁТ НОВУЮ ССЫЛКУ'; return; }
@@ -312,6 +345,7 @@ function joinRoom() {
     };
     knock();
   }, Flow.broker);
+  tryP2P(Flow.room, false);
 }
 
 function netLost() {
@@ -369,11 +403,13 @@ const UI = {
       $('cl1').style.width = (a + b ? b / sum * 100 : 50) + '%';
     }
   },
-  matchOver(w) {
+  matchOver(w, ko) {
     const me = G.mode === 'guest' ? 1 : 0;
+    if (w < 0) Profile.d++; else if (w === me) { Profile.w++; if (ko) Profile.ko++; } else Profile.l++;
+    saveProfile(); refreshProfile();
     $('resTitle').textContent = w < 0 ? 'НИЧЬЯ' : w === me ? 'ПОБЕДА!' : 'ПОРАЖЕНИЕ';
     $('resTitle').className = w === me ? 'win' : 'lose';
-    $('resSub').textContent = w < 0 ? 'Судьи развели руками' : G.f[w].def.name + ' — чемпион лиги!';
+    $('resSub').textContent = (w < 0 ? 'Судьи развели руками' : G.f[w].def.name + (ko ? ' — нокаутом!' : ' — решением судей')) + ' · твой рекорд ' + recordText();
     Sound.sfx(w === me ? 'win' : 'lose');
     $('resAgain').classList.toggle('hidden', G.mode === 'guest');
     $('resNew').classList.toggle('hidden', G.mode !== 'bot');
@@ -383,11 +419,12 @@ const UI = {
   },
   onNet(d) {
     if (d.t === 'hello' && Net.role === 'host') {
+      if (d.nick) Net.guestNick = d.nick;
       // повторный «стук» во время боя: друг мог не получить старт — шлём ещё раз
       if (G && G.mode === 'host' && G.phase !== 'over') { if (!Net.guestSeen) netSend(Net.lastStart); return; }
       Flow.p2 = d.fid; hostStart();
     }
-    else if (d.t === 'start' && Net.role === 'guest') startFight({ mode: 'guest', p1: d.p1, p2: d.p2, stage: d.stage });
+    else if (d.t === 'start' && Net.role === 'guest') startFight({ mode: 'guest', p1: d.p1, p2: d.p2, stage: d.stage, nicks: d.nicks });
   },
   togglePause(forceOn) {
     if (!G || G.mode === 'demo' || G.phase === 'over') return;
@@ -429,8 +466,17 @@ function wire() {
   };
   $('s-title').onclick = () => {
     Sound.init(); Sound.music('menu'); Sound.sfx('confirm'); goFullscreen();
+    if (!Profile.nick) { $('nickIn').value = ''; refreshProfile(); show('s-nick'); return; }
     if (Flow.room) show('s-join'); else show('s-menu');
   };
+  $('nickOk').onclick = () => {
+    const n = $('nickIn').value.trim().replace(/\s+/g, ' ').slice(0, 14);
+    if (!n) { $('nickIn').focus(); return; }
+    Profile.nick = n.toUpperCase(); saveProfile(); refreshProfile(); Sound.sfx('confirm');
+    if (Flow.room) show('s-join'); else show('s-menu');
+  };
+  $('mProfile').onclick = () => { $('nickIn').value = Profile.nick; refreshProfile(); show('s-nick'); };
+  refreshProfile();
   $('mBot').onclick = () => {
     Sound.sfx('confirm');
     openSelect('ВЫБЕРИ СВОЕГО БОЙЦА', Flow.p1, id => {
@@ -484,6 +530,8 @@ function wire() {
     if (e.code === 'Escape') $('selBack').click();
   });
 }
+
+$('pixCredits') && ($('pixCredits').textContent = 'Pixabay (Pixabay Content License): ' + Sound.credits().join(' · '));
 
 // ---------- Запуск
 const qs = new URLSearchParams(location.search);
