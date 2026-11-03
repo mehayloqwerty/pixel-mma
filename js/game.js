@@ -896,13 +896,17 @@ function predictHit(a, d) {
 // эффект от хоста про удар друга, который друг уже показал у себя, — не дублируем
 const localEcho = e => G && G.mode === 'guest' && e.by === 1 && performance.now() - (Net.localHitT || 0) < 600;
 
+// свой сервер боёв (Render, Франкфурт): 30+ обновлений в секунду; если недоступен — прямое соединение или посредник
+const wsReady = () => Net.ws && Net.ws.readyState === 1 && Net.peerWs;
+const fastLink = () => wsReady() || (Net.p2p && Net.p2p.open);
 function netSend(o) {
   try {
+    if (wsReady()) { Net.ws.send(JSON.stringify(o)); return; }
     if (Net.p2p && Net.p2p.open && (o.t === 's' || o.t === 'i')) { Net.p2p.send(o); return; }
     if (Net.conn && Net.conn.open) Net.conn.send(o);
   } catch (e) {}
 }
-const netEvery = () => (Net.p2p && Net.p2p.open ? 2 : 7);
+const netEvery = () => (fastLink() ? 2 : 7);
 
 function onNetData(d) {
   if (!d || !d.t) return;
@@ -923,7 +927,8 @@ function cleanupNet() {
   try { Net.conn && Net.conn.close(); } catch (e) {}
   try { Net.peer && Net.peer.destroy(); } catch (e) {}
   try { Net.p2pPeer && Net.p2pPeer.destroy(); } catch (e) {}
-  Net.peer = Net.conn = Net.role = Net.p2p = Net.p2pPeer = null;
+  try { Net.ws && Net.ws.close(); } catch (e) {}
+  Net.peer = Net.conn = Net.role = Net.p2p = Net.p2pPeer = Net.ws = null; Net.peerWs = false;
 }
 
 // ---------- Цикл
@@ -940,7 +945,7 @@ function tick() {
     Net.latch = (Net.latch || 0) | v;
     Net.count = (Net.count || 0) + ((edges & 0xF0) ? 1 : 0);
     Net.lastIn = v;
-    const fast = Net.p2p && Net.p2p.open, gap = fast ? 0 : 105, since = now - (Net.lastSendT || 0);
+    const fast = fastLink(), gap = fast ? 0 : 105, since = now - (Net.lastSendT || 0);
     if ((since >= gap && (v !== Net.lastSent || (Net.latch & 0x1F0))) || since >= (fast ? 50 : 160)) {
       netSend({ t: 'i', v, l: Net.latch, c: Net.count });
       Net.latch = 0; Net.count = 0; Net.lastSendT = now; Net.lastSent = v;

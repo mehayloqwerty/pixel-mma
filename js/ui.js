@@ -387,6 +387,30 @@ function hostRoom() {
     if (!G || G.mode !== 'host') $('hostStatus').textContent = 'ЖДЁМ ДРУГА...';
   });
   tryP2P(room, true);
+  wsLink(room, 'host');
+}
+
+// ---------- Свой сервер боёв
+const FIGHT_SERVER = 'pixel-mma-server.onrender.com';
+const wakeServer = () => { try { fetch('https://' + FIGHT_SERVER + '/', { mode: 'no-cors', cache: 'no-store' }).catch(() => {}); } catch (e) {} };
+function wsLink(room, role) {
+  const role0 = Net.role;
+  let tries = 0;
+  const open = () => {
+    if (Net.role !== role0) return;
+    let ws;
+    try { ws = new WebSocket('wss://' + FIGHT_SERVER + '/?room=' + encodeURIComponent(room) + '&role=' + role); } catch (e) { return; }
+    ws.onopen = () => { if (Net.role !== role0) { ws.close(); return; } Net.ws = ws; tries = 0; };
+    ws.onmessage = ev => {
+      Net.lastRx = performance.now();
+      let d; try { d = JSON.parse(ev.data); } catch (e) { return; }
+      if (d.t === '_peer') { Net.peerWs = d.on; return; }
+      Net.peerWs = true; onNetData(d);
+    };
+    ws.onclose = () => { if (Net.ws === ws) { Net.ws = null; Net.peerWs = false; } if (Net.role === role0 && tries++ < 30) setTimeout(open, 2500); };
+    ws.onerror = () => {};
+  };
+  open();
 }
 
 // пробуем прямое соединение телефон-телефон: если пробьётся — лагов почти нет, иначе остаёмся на посреднике
@@ -430,6 +454,7 @@ function joinRoom() {
     const knock = () => {
       if (Net.conn !== r || (G && G.mode === 'guest')) return;
       r.send({ t: 'hello', fid: Flow.p1, nick: Profile.nick });
+      if (Net.ws && Net.ws.readyState === 1) Net.ws.send(JSON.stringify({ t: 'hello', fid: Flow.p1, nick: Profile.nick }));
       n++;
       $('waitTxt').textContent = n < 4 ? 'ИЩУ ДРУГА В КОМНАТЕ...' : 'ЖДЁМ ДРУГА... ПУСТЬ ВЕРНЁТСЯ В ИГРУ';
       if (n > 60) { $('waitTxt').textContent = 'ДРУГ НЕ ОТВЕЧАЕТ. ПУСТЬ ОТКРОЕТ ИГРУ И ПРИШЛЁТ НОВУЮ ССЫЛКУ'; return; }
@@ -438,6 +463,7 @@ function joinRoom() {
     knock();
   }, Flow.broker);
   tryP2P(Flow.room, false);
+  wsLink(Flow.room, 'guest');
 }
 
 function netLost() {
@@ -588,6 +614,7 @@ function wire() {
     }, () => show('s-menu'));
   };
   $('mOnline').onclick = () => {
+    wakeServer();
     Sound.sfx('confirm');
     openSelect('ВЫБЕРИ СВОЕГО БОЙЦА', Flow.p1, id => { Flow.p1 = id; saveFlow(); hostRoom(); }, () => show('s-menu'));
   };
@@ -613,6 +640,7 @@ function wire() {
   };
   $('hostCancel').onclick = toMenu;
   $('joinGo').onclick = () => {
+    wakeServer();
     Sound.sfx('confirm');
     openSelect('ВЫБЕРИ СВОЕГО БОЙЦА', Flow.p1, id => { Flow.p1 = id; saveFlow(); joinRoom(); }, () => show('s-join'));
   };
