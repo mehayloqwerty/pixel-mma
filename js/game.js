@@ -38,7 +38,8 @@ function newMatch(o) {
   if (buff) { G.f[1].maxHp = Math.round(G.f[1].def.hp * buff.hp); G.f[1].dmgMul = buff.dmg; }
   G.nicks = o.nicks || ['', ''];
   startRound();
-  if (o.mode !== 'demo') {
+  G.train = !!o.train; G.career = o.career || null;
+  if (o.mode !== 'demo' && !o.train) {
     G.phase = 'walkout';
     G.f[0].x = -30; G.f[1].x = 350;
   }
@@ -143,6 +144,17 @@ function pickMove(f, btn, fwd, down, back, near) {
   return fwd ? 'highKick' : 'teep';
 }
 
+// названия приёмов для тренировки
+const MOVE_NAME = {
+  jab: 'ДЖЕБ', cross: 'КРОСС', hookP: 'ХУК (ТРОЙКА)', upper: 'АПЕРКОТ', bodyHook: 'ХУК В ПЕЧЕНЬ', bodyJab: 'ДЖЕБ В КОРПУС',
+  backfist: 'БЭКФИСТ', elbowS: 'ЛОКОТЬ', shortUpper: 'КОРОТКИЙ АПЕРКОТ', teep: 'ФРОНТ-КИК', highKick: 'ХАЙ-КИК', lowKick: 'ЛОУ-КИК',
+  bodyKick: 'В КОРПУС НОГОЙ', axeKick: 'ТОПОР', spinKick: 'ВЕРТУХА', kneeS: 'КОЛЕНО', kneeBody: 'КОЛЕНО В КОРПУС',
+  airPunch: 'РУКА В ПРЫЖКЕ', airKick: 'НОГА В ПРЫЖКЕ', hammerFist: 'МОЛОТ', stomp: 'ТОПЧУЩИЙ', flyingKick: 'ЛЕТЯЩИЙ УДАР',
+  jumpKnee: 'КОЛЕНО В ПРЫЖКЕ', wallKick: 'УДАР ОТ СЕТКИ', flipKick: 'САЛЬТО', superman: 'СУПЕРМЕН', sweep: 'ПОДСЕЧКА',
+  spinBackKick: 'УДАР НАЗАД С РАЗВОРОТА', counterHook: 'ВСТРЕЧНЫЙ ХУК', obliqueKick: 'ПО КОЛЕНУ', calfKick: 'ПО ИКРЕ',
+  dashIn: 'РЫВОК', shootTD: 'ПРОХОД В НОГИ', hook: 'ХУК', overhand: 'ОВЕРХЕНД', doubleJab: 'ДВОЙНОЙ ДЖЕБ', oneTwo: 'ДВОЙКА',
+};
+
 // рука + нога вместе: сальто, а с направлением — супермен, подсечка или удар назад
 const PK_MOVES = ['flipKick', 'superman', 'sweep', 'spinBackKick'];
 const comboPK = (fwd, down, back) => (down ? 'sweep' : fwd ? 'superman' : back ? 'spinBackKick' : 'flipKick');
@@ -153,6 +165,7 @@ function startMove(f, id) {
   const m = MOVES[id];
   f.mv = m; f.mvId = id; f.mvT = 0; f.st = 'attack'; f.t = 0;
   f.hitDone = []; f.landed = false; f.grabbed = false; f.atkSeq++;
+  if (G.train && f.side === 0) UI.special(0, MOVE_NAME[id] || id);
   if (m.cat === 's') {
     f.meter = 0;
     emit({ k: 'sp', side: f.side, text: f.def.spName });
@@ -178,6 +191,9 @@ function updFighter(f, o) {
     const near = Math.abs(o.x - f.x) < 25 * D.scale;
     if (pr('s') && f.meter >= 100) startMove(f, D.special);
     else if ((pr('p') && I.k) || (pr('k') && I.p)) startMove(f, comboPK(fwd, I.d, bk));
+    else if (I.b && (f.face > 0 ? pr('l') : pr('r'))) { setSt(f, 'slip'); emit({ k: 'sfx', n: 'whoosh' }); }
+    else if (I.b && (f.face > 0 ? pr('r') : pr('l'))) startMove(f, 'dashIn');
+    else if (I.b && I.d && pr('p')) startMove(f, 'shootTD');
     else if (I.b && pr('p')) startMove(f, 'counterHook');
     else if (I.b && pr('k')) startMove(f, I.d ? 'calfKick' : 'obliqueKick');
     else if (pr('p')) startMove(f, pickMove(f, 'p', fwd, I.d, bk, near));
@@ -198,8 +214,10 @@ function updFighter(f, o) {
     if (!f.airUsed && (pr('p') || pr('k'))) {
       f.airUsed = true;
       const fw = fwdOf();
-      if (pr('p')) startMove(f, I.d ? 'hammerFist' : fw ? 'jumpKnee' : 'airPunch');
-      else startMove(f, I.d ? 'stomp' : fw ? 'flyingKick' : 'airKick');
+      const wall = f.x < MINX + 14 || f.x > MAXX - 14;
+      if (pr('k') && wall) { f.face = o.x > f.x ? 1 : -1; f.vx = 0; startMove(f, 'wallKick'); }
+      else if (pr('p')) startMove(f, I.d ? 'hammerFist' : fw ? 'jumpKnee' : 'airPunch');
+      else if (pr('k')) startMove(f, I.d ? 'stomp' : fw ? 'flyingKick' : 'airKick');
     }
   } else if (f.st === 'attack') {
     const m = f.mv, t0 = f.mvT;
@@ -219,6 +237,8 @@ function updFighter(f, o) {
       f.mv = null; f.mvId = null; f.airUsed = true;
       setSt(f, air ? 'jump' : 'idle');
     }
+  } else if (f.st === 'slip') {
+    if (f.t >= 16) setSt(f, 'idle');
   } else if (f.st === 'land') {
     if (f.t >= 9) setSt(f, 'idle');
   } else if (f.st === 'hit') {
@@ -310,7 +330,7 @@ function strikeSeg(a, pose, limb) {
 const ZONE = { head: 1.15, body: 1, leg: 0.9, arm: 0.5 };
 const ZORDER = ['head', 'body', 'leg', 'arm'];
 function hitZone(d, seg) {
-  if (!canBeHit(d)) return null;
+  if (!canBeHit(d) || d.st === 'slip') return null;
   let best = null;
   for (const p of bodyParts(d)) {
     const [dist, at] = segDist(seg[0], seg[1], p.a, p.b);
@@ -325,6 +345,11 @@ function checkHits(a, d) {
   if (m.grab && !a.grabbed && a.mvT >= m.grab.s && a.mvT <= m.grab.e) {
     const dx = d.x - a.x;
     if (Math.sign(dx) === a.face && Math.abs(dx) <= m.grab.r * a.def.scale && d.y >= GROUND - 2 && canBeHit(d)) {
+      if (m.grab.sprawl && (d.st === 'crouch' || (d.st === 'block' && d.crouchB))) {
+        a.grabbed = true; a.mv = null; a.mvId = null; setSt(a, 'hit'); a.stun = 28; a.vx = -a.face * 1.5;
+        emit({ k: 'msg', text: 'СПРОЛ!' }); emit({ k: 'sfx', n: 'block' });
+        return;
+      }
       beginGrab(a, d, m.grab.kind);
       return;
     }
@@ -343,6 +368,14 @@ function applyHit(a, d, h, m, pt, zone = 'body') {
   let dmg = h.dmg * mul * ZONE[zone] * (a.dmgMul || 1);
   if (zone === 'arm') h = { ...h, stun: Math.round(h.stun * 0.6), kd: false };
   const facing = d.face === Math.sign(a.x - d.x);
+  if (d.st === 'block' && facing && d.t <= 6) {
+    a.mv = null; a.mvId = null; a.st = 'hit'; a.t = 0; a.stun = 30; a.vx = -a.face * 1.5;
+    d.meter = Math.min(100, d.meter + 12);
+    emit({ k: 'spark', x: pt[0], y: pt[1], blk: 1, big: 1 });
+    emit({ k: 'sfx', n: 'block' }); emit({ k: 'msg', text: 'ПАРИРОВАНИЕ!' });
+    G.hitstop = 8;
+    return;
+  }
   if (d.st === 'block' && facing) {
     dmg *= 0.15;
     d.hp = Math.max(1, d.hp - dmg);
@@ -525,6 +558,7 @@ function makeAI(diff) { return { diff, plan: 'approach', planT: 0, blockT: 0, la
 
 function aiInput(me, op, ai) {
   const I = EMPTY(), P = AIP[ai.diff];
+  if (G.train && me.side === 1) return I;
   const dx = op.x - me.x, dist = Math.abs(dx);
   const F = dx > 0 ? 'r' : 'l', B = dx > 0 ? 'l' : 'r';
   const R = Math.random;
@@ -535,6 +569,8 @@ function aiInput(me, op, ai) {
   if (me.st === 'hit') { if (dist < 44 && R() < P.react * 0.08) { I[R() < 0.6 ? 'p' : 'k'] = 1; if (R() < 0.3) I[F] = 1; } else if (R() < P.blk * 0.05) I.b = 1; return I; }
   if (op.st === 'attack' && op.atkSeq !== ai.lastSeq) {
     ai.lastSeq = op.atkSeq;
+    if (op.mv.grab && op.mv.grab.sprawl && R() < P.blk * 0.6) { I.d = 1; ai.blockT = 0; return I; }
+    if (dist < 50 && R() < P.react * 0.12 && !op.mv.grab) { I.b = 1; I[B] = 1; return I; }
     if (dist < 64 && R() < P.blk && !op.mv.grab) ai.blockT = 16 + R() * 14 | 0;
   }
   if (ai.blockT > 0 && me.st !== 'attack' && me.st !== 'jump') { ai.blockT--; I.b = 1; return I; }
@@ -562,6 +598,7 @@ function aiInput(me, op, ai) {
     const r = R(), v = R();
     if (r < 0.06) { I.p = 1; I.k = 1; const q = R(); if (q < 0.25) I[F] = 1; else if (q < 0.5) I.d = 1; else if (q < 0.7) I[B] = 1; return I; }
     if (r < 0.1) { I.b = 1; I[R() < 0.5 ? 'p' : 'k'] = 1; if (R() < 0.3) I.d = 1; return I; }
+    if (r < 0.14 && me.def.stats.grap >= 7) { I.b = 1; I.d = 1; I.p = 1; return I; }
     if (v < 0.32) {} else if (v < 0.55) I[F] = 1; else if (v < 0.72) I.d = 1; else if (v < 0.82) { I.d = 1; I[F] = 1; }
     else if (v < 0.9) { I.d = 1; I[B] = 1; } else I[B] = 1;
     I[r < 0.5 ? 'p' : 'k'] = 1;
@@ -580,6 +617,7 @@ function getPose(f) {
     case 'crouch': return POSE.crouch;
     case 'block': return f.crouchB ? POSE.cblock : POSE.block;
     case 'jump': return POSE.jump;
+    case 'slip': return lerpPose(POSE.slipP, POSE.idle, Math.max(0, (f.t - 10) / 6));
     case 'land': return lerpPose(POSE.crouch, POSE.idle, f.t / 9);
     case 'attack': return f.mv ? keyPose(f.mv.keys, f.mvT) : POSE.idle;
     case 'hit': return POSE.hit;
@@ -732,6 +770,12 @@ function phaseLogic() {
     if (g.phaseT >= pre + 100) { g.phase = 'fight'; g.phaseT = 0; }
   } else if (g.phase === 'fight') {
     g.timer--;
+    if (g.train) {
+      g.timer = ROUND_T;
+      a.meter = Math.min(100, a.meter + 0.5);
+      for (const f of g.f) if (f.hp < f.maxHp * 0.3 && !['down', 'ko', 'held'].includes(f.st)) f.hp = f.maxHp;
+      if (b.hp <= 0) b.hp = 1;
+    }
     if (a.hp <= 0 || b.hp <= 0) endRound(a.hp <= 0 && b.hp <= 0 ? -1 : a.hp <= 0 ? 1 : 0, 'K.O.!');
     else if (g.timer <= 0) {
       g.timer = 0;

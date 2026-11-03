@@ -233,3 +233,11 @@ button:hover { filter: brightness(1.15); }
 @keyframes flash { 0% { opacity: .9; } 100% { opacity: 0; } }
 #stage.slam { animation: stageSlam .5s steps(6) both; }
 @keyframes stageSlam { 0% { transform: scale(1.12); filter: brightness(1.8); } 100% { transform: none; filter: none; } }
+
+#ladder { display: flex; flex-direction: column; gap: 6px; width: min(460px, 100%); margin: 6px 0 10px; }
+.rung { display: grid; grid-template-columns: 26px 1fr 34px 76px 24px; align-items: center; gap: 6px; padding: 9px 10px; background: #17142a; box-shadow: 0 0 0 3px #000, inset 0 0 0 2px #2c2650; text-align: left; font-size: 8px; }
+.rung b { color: #777; } .rung em { font-style: normal; color: #1a1000; background: var(--yel); padding: 2px 3px; text-align: center; }
+.rung small { font-size: 6px; color: #ff9a3c; } .rung i { font-style: normal; }
+.rung.won { opacity: .55; } .rung.won i { color: #4fe07a; }
+.rung.cur { background: #3a2a10; box-shadow: 0 0 0 3px #000, inset 0 0 0 3px var(--yel); }
+.rung:last-child span { color: var(--yel); }

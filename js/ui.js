@@ -270,10 +270,10 @@ function refreshSetup() {
 // ---------- Старт боя
 // ---------- Профиль: ник и рекорд как в UFC (победы-поражения-ничьи)
 const DIFFS = ['ЛЁГКИЙ', 'БОЕЦ', 'ЧЕМПИОН', 'СЛОЖНЫЙ', 'УЛЬТРА', 'ХАРДКОР', 'БЕЗУМНЫЙ'];
-const Profile = { nick: '', w: 0, l: 0, d: 0, ko: 0 };
+const Profile = { nick: '', w: 0, l: 0, d: 0, ko: 0, belts: 0 };
 try { Object.assign(Profile, JSON.parse(localStorage.getItem('pml_profile') || '{}')); } catch (e) {}
 const saveProfile = () => { try { localStorage.setItem('pml_profile', JSON.stringify(Profile)); } catch (e) {} };
-const recordText = () => Profile.w + '-' + Profile.l + '-' + Profile.d + (Profile.ko ? ' (' + Profile.ko + ' KO)' : '');
+const recordText = () => Profile.w + '-' + Profile.l + '-' + Profile.d + (Profile.ko ? ' (' + Profile.ko + ' KO)' : '') + (Profile.belts ? ' · ' + '🏆'.repeat(Math.min(5, Profile.belts)) + (Profile.belts > 5 ? '×' + Profile.belts : '') : '');
 function refreshProfile() {
   $('profileLine').textContent = Profile.nick ? '👤 ' + Profile.nick + ' · ' + recordText() : '';
   $('nickRecord').textContent = Profile.nick ? 'РЕКОРД: ' + recordText() : 'Ник — это твой аккаунт: под ним считаются победы и поражения.';
@@ -296,6 +296,32 @@ function startFight(o) {
   });
   goFullscreen();
   Sound.unlockVoice();
+}
+
+// ---------- Путь к поясу: 5 соперников по нарастающей, проиграл — начинай заново
+const CAREER_DIFF = [1, 2, 3, 4, 5];
+let Career = null;
+function buildLadder(fid) {
+  const me = FIGHTER[fid];
+  const same = ROSTER.filter(f => f.div === me.div && f.id !== fid);
+  const rest = ROSTER.filter(f => f.div !== me.div && f.id !== fid).sort(() => Math.random() - 0.5);
+  const pool = [...same, ...rest].slice(0, Math.max(5, same.length)).slice(0, 5);
+  while (pool.length < 5) pool.push(rest[pool.length]);
+  return pool.sort((p, q) => ovr(p) - ovr(q)).map(f => f.id);
+}
+function showCareer() {
+  const me = FIGHTER[Career.fid];
+  $('carInfo').textContent = me.name + ' · БОЙ ' + (Career.step + 1) + ' ИЗ 5 · ПОЯСОВ: ' + (Profile.belts || 0);
+  $('ladder').innerHTML = Career.ladder.map((id, i) => {
+    const f = FIGHTER[id], st = i < Career.step ? 'won' : i === Career.step ? 'cur' : '';
+    return `<div class="rung ${st}"><b>${i + 1}</b><span>${f.name} ${f.flag}</span><em>${ovr(f)}</em><small>${DIFFS[CAREER_DIFF[i]]}</small>${i < Career.step ? '<i>✓</i>' : i === 4 ? '<i>🏆</i>' : ''}</div>`;
+  }).join('');
+  show('s-career');
+}
+function careerFight() {
+  Flow.p1 = Career.fid; Flow.p2 = Career.ladder[Career.step]; Flow.diff = CAREER_DIFF[Career.step];
+  startFight({ mode: 'bot', p1: Flow.p1, p2: Flow.p2, stage: 0, diff: Flow.diff, career: true,
+    nicks: [Profile.nick, 'БОЙ ' + (Career.step + 1) + '/5'] });
 }
 
 function botFight() {
@@ -456,14 +482,25 @@ const UI = {
   },
   matchOver(w, ko) {
     const me = G.mode === 'guest' ? 1 : 0;
+    if (G.train) { toMenu(); return; }
     if (w < 0) Profile.d++; else if (w === me) { Profile.w++; if (ko) Profile.ko++; } else Profile.l++;
+    let carMsg = '';
+    if (G.career && Career) {
+      if (w === me) {
+        Career.step++;
+        if (Career.step >= 5) { Profile.belts = (Profile.belts || 0) + 1; carMsg = ' · 🏆 ТЫ ЧЕМПИОН ЛИГИ!'; Career = null; }
+        else carMsg = ' · дальше бой ' + (Career.step + 1) + ' из 5';
+      } else { carMsg = ' · путь к поясу окончен на бою ' + (Career.step + 1); Career = null; }
+    }
     saveProfile(); refreshProfile();
+    $('resCareer').classList.toggle('hidden', !(G.career && Career));
     $('resTitle').textContent = w < 0 ? 'НИЧЬЯ' : w === me ? 'ПОБЕДА!' : 'ПОРАЖЕНИЕ';
     $('resTitle').className = w === me ? 'win' : 'lose';
-    $('resSub').textContent = (w < 0 ? 'Судьи развели руками' : G.f[w].def.name + (ko ? ' — нокаутом!' : ' — решением судей')) + ' · твой рекорд ' + recordText();
+    $('resSub').textContent = (w < 0 ? 'Судьи развели руками' : G.f[w].def.name + (ko ? ' — нокаутом!' : ' — решением судей')) + carMsg + ' · твой рекорд ' + recordText();
+    if (G.career && !Career && w === me) { $('resTitle').textContent = '🏆 ЧЕМПИОН!'; }
     Sound.sfx(w === me ? 'win' : 'lose');
-    $('resAgain').classList.toggle('hidden', G.mode === 'guest');
-    $('resNew').classList.toggle('hidden', G.mode !== 'bot');
+    $('resAgain').classList.toggle('hidden', G.mode === 'guest' || !!G.career);
+    $('resNew').classList.toggle('hidden', G.mode !== 'bot' || !!G.career);
     $('resWait').classList.toggle('hidden', G.mode !== 'guest');
     $('touch').classList.add('hidden');
     show('s-result');
@@ -570,6 +607,21 @@ function wire() {
   $('pMenu').onclick = toMenu;
   $('resAgain').onclick = () => { Sound.sfx('confirm'); if (G.mode === 'host') hostStart(); else botFight(); };
   $('resNew').onclick = () => $('mBot').click();
+  $('resCareer').onclick = () => { Sound.sfx('confirm'); showCareer(); };
+  $('mCareer').onclick = () => {
+    Sound.sfx('confirm');
+    if (Career) { showCareer(); return; }
+    openSelect('БОЕЦ ДЛЯ ПУТИ К ПОЯСУ', Flow.p1, id => { Flow.p1 = id; saveFlow(); Career = { fid: id, step: 0, ladder: buildLadder(id) }; showCareer(); }, () => show('s-menu'));
+  };
+  $('carGo').onclick = () => { Sound.sfx('confirm'); careerFight(); };
+  $('carBack').onclick = () => show('s-menu');
+  $('mTrain').onclick = () => {
+    Sound.sfx('confirm');
+    openSelect('БОЕЦ ДЛЯ ТРЕНИРОВКИ', Flow.p1, id => {
+      Flow.p1 = id; saveFlow();
+      startFight({ mode: 'bot', p1: id, p2: id === 'khabib' ? 'tyson' : 'khabib', stage: 0, diff: 0, train: true, nicks: [Profile.nick, 'ГРУША'] });
+    }, () => show('s-menu'));
+  };
   $('resMenu').onclick = toMenu;
 
   addEventListener('keydown', e => {

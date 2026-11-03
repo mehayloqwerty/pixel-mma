@@ -14,7 +14,7 @@
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><text y='14' font-size='14'>🥊</text></svg>">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=1793708066">
+<link rel="stylesheet" href="style.css?v=1793709472">
 </head>
 <body>
 <div id="stage">
@@ -74,7 +74,9 @@
   <h1 class="logo small">PIXEL<br>MMA<span>ЛИГА БОЙЦОВ</span></h1>
   <p id="profileLine" class="profile"></p>
   <div class="col">
-    <button id="mBot" class="hot">⚔ БОЙ С БОТОМ</button>
+    <button id="mCareer" class="hot">🏆 ПУТЬ К ПОЯСУ</button>
+    <button id="mBot">⚔ БОЙ С БОТОМ</button>
+    <button id="mTrain">🥋 ТРЕНИРОВКА</button>
     <button id="mOnline">🔗 БОЙ С ДРУГОМ</button>
     <button id="mProfile">👤 ПРОФИЛЬ И НИК</button>
     <button id="mHelp">🎮 КАК ИГРАТЬ</button>
@@ -153,11 +155,22 @@
   </div>
 </div>
 
+<div class="screen hidden" id="s-career">
+  <h2>ПУТЬ К ПОЯСУ</h2>
+  <p id="carInfo"></p>
+  <div id="ladder"></div>
+  <div class="row">
+    <button id="carBack">В МЕНЮ</button>
+    <button id="carGo" class="hot">В БОЙ!</button>
+  </div>
+</div>
+
 <div class="screen hidden dim" id="s-result">
   <h1 id="resTitle">ПОБЕДА!</h1>
   <p id="resSub"></p>
   <p id="resWait" class="blink hidden">ЖДЁМ РЕВАНША ОТ ДРУГА...</p>
   <div class="col">
+    <button id="resCareer" class="hot hidden">ДАЛЬШЕ</button>
     <button id="resAgain" class="hot">РЕВАНШ</button>
     <button id="resNew">ДРУГОЙ БОЕЦ</button>
     <button id="resMenu">МЕНЮ</button>
@@ -194,6 +207,9 @@
     <p>Рука + нога вместе — сальто с ударом ногой</p>
     <p>Рука + нога + вперёд — супермен-панч · + вниз — подсечка · + назад — удар ногой с разворота</p>
     <p>Блок + рука — встречный хук · блок + нога — по колену · блок + вниз + нога — по икре</p>
+    <p><b>ЗАЩИТА</b>: блок в момент удара — парирование · блок + назад — уклон · блок + вперёд — рывок</p>
+    <p>Блок + вниз + рука — проход в ноги (присел в ответ — спрол, проход сорван)</p>
+    <p>В прыжке у сетки + нога — удар с отскоком от клетки</p>
     <p>В прыжке: вниз + рука — молот · вниз + нога — топчущий · вперёд + рука — колено · вперёд + нога — летящий удар</p>
     <p>Вплотную: вниз + рука — короткий апперкот · вниз + нога — колено в корпус</p>
     <p>Вплотную: рука — локоть, нога — колено</p>
@@ -210,11 +226,11 @@
 
 <script src="https://unpkg.com/mqtt@5.10.1/dist/mqtt.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"></script>
-<script src="js/audio.js?v=1793708066"></script>
-<script src="js/fighters.js?v=1793708066"></script>
-<script src="js/stages.js?v=1793708066"></script>
-<script src="js/sprite.js?v=1793708066"></script>
-<script src="js/game.js?v=1793708066"></script>
-<script src="js/ui.js?v=1793708066"></script>
+<script src="js/audio.js?v=1793709472"></script>
+<script src="js/fighters.js?v=1793709472"></script>
+<script src="js/stages.js?v=1793709472"></script>
+<script src="js/sprite.js?v=1793709472"></script>
+<script src="js/game.js?v=1793709472"></script>
+<script src="js/ui.js?v=1793709472"></script>
 </body>
 </html>
