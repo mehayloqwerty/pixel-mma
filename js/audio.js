@@ -322,6 +322,7 @@ const Sound = (() => {
   // menu — Kevin MacLeod (incompetech.com, CC BY 4.0); остальное — Pixabay Content License
   const TRACKS = {
     menu: ['Deep Dubstep (Meditation)', 'GiorgioVitté'],
+    career: ['No Copyright Music', 'Sub_Clair'],
     khabib: ['Epic Orchestral Drums', 'Playsound'], oliveira: ['Brazilian Phonk', 'MondaMusic'],
     jones: ['Aggressive Trap Beat', 'vaitsez'], tyson: ['Beat de Boom Bap Callejero', 'flakitogilbeatz'],
     tsarukyan: ['Middle Eastern Music', '331music'], mcgregor: ['Celtic Bagpipe Rock', 'vjgalaxy'],

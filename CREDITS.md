@@ -4,6 +4,8 @@
 menu.m4a — "Deep Dubstep (Meditation)" — GiorgioVitté, Pixabay: https://pixabay.com/music/dubstep-deep-dubstep-meditation-472104/ (Pixabay Content License)
 
 ## Pixabay (Pixabay Content License, https://pixabay.com/service/license-summary/)
+career.m4a — "No Copyright Music" — Sub_Clair: https://pixabay.com/music/beats-no-copyright-music-620331/ (Путь к поясу и Тренировка)
+
 | Файл | Трек | Автор | Страница |
 |---|---|---|---|
 | fight.m4a | Brazilian Phonk Instrumental | Sub_Clair | https://pixabay.com/music/phonk-brazilian-phonk-instrumental-607624/ |

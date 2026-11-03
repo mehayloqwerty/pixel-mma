@@ -326,6 +326,7 @@ function buildLadder(fid) {
 function showCareer() {
   const me = FIGHTER[Career.fid];
   $('carInfo').textContent = me.name + ' · БОЙ ' + (Career.step + 1) + ' ИЗ 5 · ПОЯСОВ: ' + (Profile.belts || 0);
+  Sound.music('career');
   $('ladder').innerHTML = Career.ladder.map((id, i) => {
     const f = FIGHTER[id], st = i < Career.step ? 'won' : i === Career.step ? 'cur' : '';
     return `<div class="rung ${st}"><b>${i + 1}</b><span>${f.name} ${f.flag}</span><em>${ovr(f)}</em><small>${DIFFS[CAREER_DIFF[i]]}</small>${i < Career.step ? '<i>✓</i>' : i === 4 ? '<i>🏆</i>' : ''}</div>`;
@@ -634,6 +635,7 @@ function wire() {
     openSelect('БОЕЦ ДЛЯ ТРЕНИРОВКИ', Flow.p1, id => {
       Flow.p1 = id; saveFlow();
       startFight({ mode: 'bot', p1: id, p2: id === 'khabib' ? 'tyson' : 'khabib', stage: 0, diff: 0, train: true, nicks: [Profile.nick, 'ГРУША'] });
+      Sound.music('career');
     }, () => show('s-menu'));
   };
   $('resMenu').onclick = toMenu;
