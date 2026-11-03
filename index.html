@@ -14,7 +14,7 @@
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><text y='14' font-size='14'>🥊</text></svg>">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=1793705655">
+<link rel="stylesheet" href="style.css?v=1793706003">
 </head>
 <body>
 <div id="stage">
@@ -57,7 +57,7 @@
 <div class="screen" id="s-title">
   <h1 class="logo">PIXEL<br>MMA<span>ЛИГА БОЙЦОВ</span></h1>
   <p class="blink" id="titleHint">НАЖМИ, ЧТОБЫ НАЧАТЬ</p>
-  <p class="tiny">© 2000 · 51 БОЕЦ · ОКТАГОН<br>МУЗЫКА: PIXABAY (АВТОРЫ — В «КАК ИГРАТЬ») · МЕНЮ: KEVIN MACLEOD, CC BY 4.0</p>
+  <p class="tiny">© 2000 · 50 БОЙЦОВ · ОКТАГОН<br>МУЗЫКА: PIXABAY (АВТОРЫ — В «КАК ИГРАТЬ») · МЕНЮ: KEVIN MACLEOD, CC BY 4.0</p>
 </div>
 
 <div class="screen hidden" id="s-nick">
@@ -82,20 +82,27 @@
 
 <div class="screen hidden" id="s-select">
   <h2 id="selTitle">ВЫБЕРИ БОЙЦА</h2>
+  <div id="divs"></div>
   <div class="selwrap">
-    <div id="grid"></div>
     <div id="info">
-      <canvas id="prev" width="220" height="230"></canvas>
+      <div class="prevbox">
+        <canvas id="prev" width="220" height="230"></canvas>
+        <div id="iOvr"></div>
+        <button id="selPrev" class="arr">◀</button><button id="selNext" class="arr r">▶</button>
+      </div>
       <div id="iName"></div>
       <div id="iNick"></div>
+      <div id="iDiv"></div>
       <div id="iStats"></div>
       <p id="iStyle"></p>
       <p id="iSp"></p>
       <p id="iSong"></p>
     </div>
+    <div id="grid"></div>
   </div>
   <div class="row">
     <button id="selBack">НАЗАД</button>
+    <button id="selRnd">🎲 СЛУЧАЙНЫЙ</button>
     <button id="selOk" class="hot">ВЫБРАТЬ</button>
   </div>
 </div>
@@ -200,11 +207,11 @@
 
 <script src="https://unpkg.com/mqtt@5.10.1/dist/mqtt.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"></script>
-<script src="js/audio.js?v=1793705655"></script>
-<script src="js/fighters.js?v=1793705655"></script>
-<script src="js/stages.js?v=1793705655"></script>
-<script src="js/sprite.js?v=1793705655"></script>
-<script src="js/game.js?v=1793705655"></script>
-<script src="js/ui.js?v=1793705655"></script>
+<script src="js/audio.js?v=1793706003"></script>
+<script src="js/fighters.js?v=1793706003"></script>
+<script src="js/stages.js?v=1793706003"></script>
+<script src="js/sprite.js?v=1793706003"></script>
+<script src="js/game.js?v=1793706003"></script>
+<script src="js/ui.js?v=1793706003"></script>
 </body>
 </html>

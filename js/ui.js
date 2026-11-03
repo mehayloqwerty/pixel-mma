@@ -118,29 +118,65 @@ function toMenu() {
 // ---------- Выбор бойца
 let selCb = null, selBack = null, selIdx = 0, prevAnim = null;
 
+// ---------- Выбор бойца: вкладки весовых категорий, большая карточка, сетка категории
+let curDiv = 'lw';
 function buildGrid() {
-  const grid = $('grid');
+  const grid = $('grid'), tabs = $('divs');
+  DIVISIONS.forEach(([div, title, ids]) => {
+    const t = document.createElement('button');
+    t.className = 'tab'; t.dataset.div = div;
+    t.innerHTML = title + ' <small>' + ids.length + '</small>';
+    t.onclick = () => { showDiv(div); Sound.sfx('select'); };
+    tabs.appendChild(t);
+  });
   ROSTER.forEach((f, i) => {
     const card = document.createElement('button');
-    card.className = 'card';
+    card.className = 'card'; card.dataset.div = f.div; card.dataset.i = i;
     const c = document.createElement('canvas');
     c.width = 90; c.height = 90;
     const x = c.getContext('2d'); x.imageSmoothingEnabled = false;
-    x.fillStyle = '#1b1830'; x.fillRect(0, 0, 90, 90);
+    const g = x.createLinearGradient(0, 0, 0, 90);
+    g.addColorStop(0, '#2a2348'); g.addColorStop(1, '#120f22');
+    x.fillStyle = g; x.fillRect(0, 0, 90, 90);
     drawFighterHD(x, f, POSE.idle, 39, Math.round(192 * f.scale), 1, {});
     card.appendChild(c);
+    const o = document.createElement('em'); o.textContent = ovr(f); card.appendChild(o);
+    const fl = document.createElement('i'); fl.textContent = f.flag; card.appendChild(fl);
     const n = document.createElement('span'); n.textContent = f.name; card.appendChild(n);
     card.onclick = () => { if (selIdx === i) $('selOk').click(); else pickCard(i); };
     grid.appendChild(card);
   });
+  // внутри категории — от сильного к слабому
+  DIVISIONS.forEach(([div]) => {
+    [...grid.querySelectorAll('.card[data-div="' + div + '"]')]
+      .sort((p, q) => ovr(ROSTER[q.dataset.i]) - ovr(ROSTER[p.dataset.i]))
+      .forEach(c => grid.appendChild(c));
+  });
+}
+
+const visibleCards = () => [...document.querySelectorAll('#grid .card')].filter(c => c.dataset.div === curDiv);
+function showDiv(div, keep) {
+  curDiv = div;
+  document.querySelectorAll('#divs .tab').forEach(t => t.classList.toggle('sel', t.dataset.div === div));
+  document.querySelectorAll('#grid .card').forEach(c => c.classList.toggle('hidden', c.dataset.div !== div));
+  const act = document.querySelector('#divs .tab.sel');
+  if (act) act.scrollIntoView({ block: 'nearest', inline: 'center' });
+  if (!keep) pickCard(+visibleCards()[0].dataset.i);
+}
+function stepCard(d) {
+  const v = visibleCards(), k = v.findIndex(c => +c.dataset.i === selIdx);
+  pickCard(+v[(k + d + v.length) % v.length].dataset.i);
 }
 
 function pickCard(i) {
   selIdx = i;
-  document.querySelectorAll('.card').forEach((c, j) => c.classList.toggle('sel', i === j));
   const f = ROSTER[i];
+  showDiv(f.div, true);
+  document.querySelectorAll('.card').forEach(c => c.classList.toggle('sel', +c.dataset.i === i));
   $('iName').textContent = f.name + ' ' + f.flag;
   $('iNick').textContent = '«' + f.nick + '»';
+  $('iOvr').textContent = ovr(f);
+  $('iDiv').textContent = (DIVISIONS.find(d => d[0] === f.div) || [, ''])[1];
   const lbl = { pow: 'СИЛА', spd: 'СКОРОСТЬ', grap: 'БОРЬБА', reach: 'ДИСТАНЦИЯ' };
   $('iStats').innerHTML = Object.entries(f.stats).map(([k, v]) =>
     `<div class="st"><b>${lbl[k]}</b><span>${'<i class="on"></i>'.repeat(v)}${'<i></i>'.repeat(10 - v)}</span></div>`).join('');
@@ -492,6 +528,9 @@ function wire() {
   $('helpBack').onclick = () => show('s-menu');
   $('selOk').onclick = () => { Sound.sfx('confirm'); selCb && selCb(ROSTER[selIdx].id); };
   $('selBack').onclick = () => selBack && selBack();
+  $('selPrev').onclick = () => stepCard(-1);
+  $('selNext').onclick = () => stepCard(1);
+  $('selRnd').onclick = () => { pickCard(Math.random() * ROSTER.length | 0); Sound.sfx('confirm'); };
   $('setBack').onclick = () => $('mBot').click();
   $('setGo').onclick = () => { Sound.sfx('confirm'); botFight(); };
   $('copyBtn').onclick = async () => {
@@ -523,9 +562,13 @@ function wire() {
       if (e.code === 'Enter' && !$('s-title').classList.contains('hidden')) $('s-title').click();
       return;
     }
-    const cols = getComputedStyle($('grid')).gridTemplateColumns.split(' ').length, n = ROSTER.length;
+    const cols = getComputedStyle($('grid')).gridTemplateColumns.split(' ').length;
     const mv = { ArrowLeft: -1, ArrowRight: 1, ArrowUp: -cols, ArrowDown: cols }[e.code];
-    if (mv) { pickCard((selIdx + mv + n) % n); e.preventDefault(); }
+    if (mv) { stepCard(mv); e.preventDefault(); }
+    if (e.code === 'KeyQ' || e.code === 'KeyE') {
+      const k = DIVISIONS.findIndex(d => d[0] === curDiv), n = DIVISIONS.length;
+      showDiv(DIVISIONS[(k + (e.code === 'KeyE' ? 1 : -1) + n) % n][0]);
+    }
     if (e.code === 'Enter' || e.code === 'KeyJ') $('selOk').click();
     if (e.code === 'Escape') $('selBack').click();
   });

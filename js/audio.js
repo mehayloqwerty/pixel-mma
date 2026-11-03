@@ -363,7 +363,6 @@ const Sound = (() => {
     pacquiao: ["Asian Epic Adventure Music", "Tunetank"],
     lomachenko: ["Ukrainian Sopilka Flute Folk Rap", "vjgalaxy"],
     wklitschko: ["Epic Orchestral", "Kulakovka"],
-    vklitschko: ["Epic Battle", "YevhenAstafiev"],
     fury: ["Irish Punk Loop", "Ebunny"],
     canelo: ["Mexican Mariachi - Plaza de Papel", "Michael-Vault"],
     joshua: ["Afrobeat", "kiravale"],

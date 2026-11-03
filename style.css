@@ -93,16 +93,30 @@ button.hot { background: #f2b51b; color: #1a1000; box-shadow: inset -4px -4px 0 
 .row { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; }
 
 /* ---------- Выбор бойца */
-.selwrap { display: flex; gap: 14px; flex-wrap: wrap; justify-content: center; align-items: flex-start; }
-#grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; width: min(540px, 100%); }
-.card { margin: 0; padding: 4px 2px 6px; background: #17142a; box-shadow: 0 0 0 3px #000, inset 0 0 0 2px #2c2650; display: flex; flex-direction: column; align-items: center; }
-.card canvas { width: 100%; max-width: 80px; image-rendering: pixelated; }
-.card span { font-size: 6px; margin-top: 4px; white-space: nowrap; overflow: hidden; max-width: 100%; }
-.card.sel { background: #3a2a10; box-shadow: 0 0 0 3px #000, inset 0 0 0 3px var(--yel); }
-#info { width: min(300px, 100%); background: #0e0c1c; box-shadow: 0 0 0 3px #000, inset 0 0 0 2px #2c2650; padding: 10px; text-align: left; }
+#divs { display: flex; gap: 6px; overflow-x: auto; max-width: min(900px, 100%); padding: 4px 4px 10px; scrollbar-width: none; }
+#divs::-webkit-scrollbar { display: none; }
+.tab { flex-shrink: 0; margin: 0; padding: 9px 12px; font-size: 8px; background: #1d1934; box-shadow: inset -3px -3px 0 #0e0b1e, 0 0 0 3px #000; color: #bbb; }
+.tab small { color: var(--yel); font-size: 7px; margin-left: 4px; }
+.tab.sel { background: var(--red); color: #fff; box-shadow: inset -3px -3px 0 #7a1218, inset 3px 3px 0 #ff6a6f, 0 0 0 3px var(--yel); }
+.tab.sel small { color: #fff; }
+.selwrap { display: flex; gap: 14px; flex-wrap: wrap; justify-content: center; align-items: flex-start; width: min(900px, 100%); }
+#grid { flex: 1 1 360px; display: grid; grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); gap: 8px; align-content: start; max-width: 560px; }
+.card { position: relative; margin: 0; padding: 4px 3px 7px; background: #17142a; box-shadow: 0 0 0 3px #000, inset 0 0 0 2px #2c2650; display: flex; flex-direction: column; align-items: center; transition: transform .08s; }
+.card:hover { transform: translateY(-2px); }
+.card canvas { width: 100%; image-rendering: pixelated; }
+.card em { position: absolute; top: 5px; left: 6px; font-style: normal; font-size: 9px; color: #1a1000; background: var(--yel); padding: 2px 3px; box-shadow: 0 0 0 2px #000; }
+.card i { position: absolute; top: 4px; right: 6px; font-style: normal; font-size: 12px; }
+.card span { font-size: 6px; margin-top: 5px; white-space: nowrap; overflow: hidden; max-width: 100%; }
+.card.sel { background: #3a2a10; box-shadow: 0 0 0 3px #000, inset 0 0 0 3px var(--yel); transform: translateY(-2px); }
+#info { flex: 0 0 280px; width: 280px; background: #0e0c1c; box-shadow: 0 0 0 3px #000, inset 0 0 0 2px #2c2650; padding: 10px; text-align: left; }
+.prevbox { position: relative; }
 #prev { width: 100%; image-rendering: pixelated; display: block; }
+#iOvr { position: absolute; top: 6px; left: 6px; font-size: 16px; color: #1a1000; background: var(--yel); padding: 4px 6px; box-shadow: 0 0 0 3px #000; }
+.arr { position: absolute; top: 45%; left: 2px; margin: 0; padding: 8px 9px; font-size: 10px; background: #000a; box-shadow: 0 0 0 2px #ffffff55; }
+.arr.r { left: auto; right: 2px; }
 #iName { font-size: 13px; color: var(--yel); margin-top: 10px; }
-#iNick { font-size: 9px; color: #aaa; margin: 6px 0 10px; }
+#iNick { font-size: 9px; color: #aaa; margin: 6px 0 4px; }
+#iDiv { font-size: 7px; color: #ff9a3c; margin-bottom: 8px; }
 .st { display: flex; justify-content: space-between; align-items: center; margin: 5px 0; font-size: 7px; }
 .st span { display: flex; gap: 2px; }
 .st i { width: 9px; height: 7px; background: #2b2640; }
@@ -133,12 +147,13 @@ button.hot { background: #f2b51b; color: #1a1000; box-shadow: inset -4px -4px 0 
 @media (max-height: 520px) {
   h2 { font-size: 12px; margin: 6px 0; }
   .screen { padding-top: 8px; }
-  #prev { width: auto; height: 96px; margin: 0 auto; }
+  #prev { width: auto; height: 120px; margin: 0 auto; }
+  #info { flex-basis: 220px; width: 220px; }
+  #grid { grid-template-columns: repeat(auto-fill, minmax(76px, 1fr)); }
+  .tab { padding: 7px 9px; }
   #info { padding: 8px; }
   #iName { margin-top: 4px; }
   .st { margin: 3px 0; }
-  #grid { width: min(420px, 100%); }
-  .card canvas { max-width: 54px; }
   button { padding: 10px 14px; margin: 5px; }
 }
 

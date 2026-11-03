@@ -57,7 +57,6 @@ menu.m4a — "Volatile Reaction" — Kevin MacLeod (incompetech.com). Licensed u
 | pacquiao.m4a | Asian Epic Adventure Music | Tunetank | https://pixabay.com/music/main-title-asian-epic-adventure-music-414102/ |
 | lomachenko.m4a | Ukrainian Sopilka Flute Folk Rap | vjgalaxy | https://pixabay.com/music/trap-ukrainian-sopilka-flute-folk-rap-584652/ |
 | wklitschko.m4a | Epic Orchestral | Kulakovka | https://pixabay.com/music/main-title-epic-orchestral-274992/ |
-| vklitschko.m4a | Epic Battle | YevhenAstafiev | https://pixabay.com/music/orchestral-epic-epic-battle-607250/ |
 | fury.m4a | Irish Punk Loop | Ebunny | https://pixabay.com/music/ireland-irish-punk-loop-370954/ |
 | canelo.m4a | Mexican Mariachi - Plaza de Papel | Michael-Vault | https://pixabay.com/music/modern-jazz-mexican-mariachi-instrumental-plaza-de-papel-580777/ |
 | joshua.m4a | Afrobeat | kiravale | https://pixabay.com/music/afrobeat-afrobeat-593655/ |
