@@ -21,6 +21,7 @@ function mkFighter(side, id) {
     mv: null, mvId: null, mvT: 0, hitDone: [], landed: false, grabbed: false,
     stun: 0, flash: 0, inv: 0, downDur: 0, gkind: null, gt: 0, mash: 0,
     atkSeq: 0, inp: EMPTY(), prev: EMPTY(), crouchB: false, combo: 0, airUsed: false,
+    dmgZ: { head: 0, body: 0, arm: 0, leg: 0 },
   };
 }
 
@@ -29,7 +30,7 @@ function newMatch(o) {
     mode: o.mode, stage: o.stage, diff: o.diff ?? 1,
     f: [mkFighter(0, o.p1), mkFighter(1, o.p2)],
     round: 1, wins: [0, 0], timer: ROUND_T, phase: 'intro', phaseT: 0, winner: -1,
-    hitstop: 0, slow: 0, shake: 0, parts: [], fx: [], remoteHeld: 0, remoteLatch: 0, frame: 0,
+    hitstop: 0, slow: 0, shake: 0, parts: [], fx: [], stains: [], remoteHeld: 0, remoteLatch: 0, frame: 0,
     ai: [makeAI(o.mode === 'demo' ? 1 : 0), makeAI(o.diff ?? 1)],
   };
   Sound.quiet = o.mode === 'demo';
@@ -93,8 +94,37 @@ function dust(x) {
   }
 }
 function updateParts() {
-  for (const p of G.parts) { p.x += p.vx; p.y += p.vy; p.vy += p.g || 0; p.vx *= 0.95; p.l--; }
+  for (const p of G.parts) {
+    p.x += p.vx; p.y += p.vy; p.vy += p.g || 0; p.vx *= 0.95; p.l--;
+    // капля упала на мат — остаётся пятно до конца боя
+    if (p.drop && p.y >= GROUND + 1) {
+      p.l = 0;
+      if (G.stains.length > 160) G.stains.shift();
+      G.stains.push({ x: Math.round(p.x), y: GROUND + 1 + (Math.random() * 7 | 0), w: 1 + (Math.random() * 3 | 0), c: Math.random() < 0.5 ? '#6a0a12' : '#8a1018' });
+    }
+  }
   G.parts = G.parts.filter(p => p.l > 0);
+}
+
+// ---------- Травмы: счёт ударов по зонам, сообщения и кровь
+function injure(d, zone) {
+  d.dmgZ[zone] = (d.dmgZ[zone] || 0) + 1;
+  const n = d.dmgZ[zone];
+  if (n === 7) emit({ k: 'msg', text: zone === 'head' ? 'РАССЕЧЕНИЕ!' : 'КРОВЬ!' });
+  if (n === 15) emit({ k: 'msg', text: zone === 'head' ? 'ГЛАЗ ЗАПЛЫЛ!' : 'ПЕРЕЛОМ!' });
+}
+const BLEED_AT = 7;
+function bleed() {
+  for (const f of G.f) {
+    for (const z of ['head', 'body', 'arm', 'leg']) {
+      const n = f.dmgZ[z] || 0;
+      if (n < BLEED_AT || Math.random() > 0.025 + Math.min(0.08, (n - BLEED_AT) * 0.008)) continue;
+      const part = bodyParts(f).find(p => p.z === z);
+      if (!part) continue;
+      const t = Math.random(), x = part.a[0] + (part.b[0] - part.a[0]) * t, y = part.a[1] + (part.b[1] - part.a[1]) * t;
+      G.parts.push({ x, y, vx: (Math.random() - 0.5) * 0.3, vy: 0.2, l: 200, c: BLOOD[Math.random() * 3 | 0], g: 0.12, drop: 1 });
+    }
+  }
 }
 
 // ---------- Ввод ударов
@@ -327,6 +357,8 @@ function applyHit(a, d, h, m, pt, zone = 'body') {
   const armored = d.st === 'attack' && d.mv.armor && d.mvT < d.mv.armor;
   const wasStunned = d.st === 'hit';
   d.hp -= dmg; d.flash = 4; a.landed = true;
+  injure(d, zone);
+  if ((d.dmgZ[zone] || 0) >= 7) for (let i = 0; i < 5; i++) G.parts.push({ x: pt[0], y: pt[1], vx: a.face * (0.5 + Math.random() * 1.5), vy: -Math.random() * 1.5, l: 60, c: BLOOD[i % 3], g: 0.14, drop: 1 });
   a.combo = wasStunned ? a.combo + 1 : 1;
   if (a.combo >= 2) emit({ k: 'combo', side: a.side, n: a.combo });
   a.meter = Math.min(100, a.meter + dmg * 1.6);
@@ -394,7 +426,7 @@ function updGrab(a, d) {
   if (a.gkind === 'gnp') {
     const HITS = 6, START = 20, CYC = 12, k = a.gt - START;
     if (k >= 0 && k % CYC === 6 && k / CYC < HITS) {
-      d.hp -= 3.6; d.flash = 3;
+      d.hp -= 3.6; d.flash = 3; injure(d, 'head');
       const pt = jointWorld(a.def, POSE.gnp, a.x, a.y, a.face, 'bh');
       emit({ k: 'spark', x: pt[0], y: pt[1] });
       emit({ k: 'sfx', n: 'punch' }); emit({ k: 'shake', v: 2 });
@@ -594,6 +626,7 @@ function drawFace(f) {
 
 // ---------- Выход бойцов и ведущий
 const WALK_END = 520;
+const RG_T = 190; // сколько кадров идёт ринг-гёрл
 function annState(T) {
   if (T >= 445) return { x: 160 + (T - 445) * 1.6, face: 1, pose: lerpPose(POSE.walk1, POSE.walk2, (Math.sin(T * 0.28) + 1) / 2) };
   const p = POSE.annL.slice(); p[3] += Math.sin(T * 0.1);
@@ -647,13 +680,11 @@ function walkout() {
   const ia = INTRO[a.id] || ['', a.def.name], ib = INTRO[b.id] || ['', b.def.name];
   if (T === 1) {
     emit({ k: 'msg', text: 'ДАМЫ И ГОСПОДА!' });
-    emit({ k: 'say', text: 'Дамы и господа! Главный бой вечера!' });
     emit({ k: 'sfx', n: 'crowd' });
   }
   if (T === 50) {
     emit({ k: 'music', n: a.id });
     emit({ k: 'msg', text: 'В КРАСНОМ УГЛУ' });
-    emit({ k: 'say', text: 'В красном углу! ' + ia[0] + '! ' + ia[1] + '!' });
   }
   if (T >= 50 && T < 170) walkTo(a, 108);
   if (T === 170) { a.x = 108; a.face = 1; a.st = 'taunt'; a.t = 0; emit({ k: 'msg', text: a.def.name + ' «' + a.def.nick.toUpperCase() + '»' }); emit({ k: 'sfx', n: 'crowd' }); }
@@ -662,13 +693,12 @@ function walkout() {
   if (T === 245) {
     emit({ k: 'music', n: b.id });
     emit({ k: 'msg', text: 'В СИНЕМ УГЛУ' });
-    emit({ k: 'say', text: 'В синем углу! ' + ib[0] + '! ' + ib[1] + '!' });
   }
   if (T >= 245 && T < 365) walkTo(b, 212);
   if (T === 365) { b.x = 212; b.face = -1; b.st = 'taunt'; b.t = 0; emit({ k: 'msg', text: b.def.name + ' «' + b.def.nick.toUpperCase() + '»' }); emit({ k: 'sfx', n: 'crowd' }); }
   if (kissy(b)) emit({ k: 'heart', x: b.x - 12, y: b.y - 56, d: -1 });
   if (T === 435) { b.st = 'idle'; b.face = -1; b.t = 0; }
-  if (T === 445) { emit({ k: 'msg', text: 'ДА НАЧНЁТСЯ БИТВА!' }); emit({ k: 'say', text: 'Да начнётся битва!' }); }
+  if (T === 445) { emit({ k: 'msg', text: 'ДА НАЧНЁТСЯ БИТВА!' }); }
   if (T >= WALK_END) endWalkout();
 }
 
@@ -694,9 +724,12 @@ function phaseLogic() {
   const g = G, [a, b] = g.f;
   g.phaseT++;
   if (g.phase === 'intro') {
-    if (g.phaseT === 1) { emit({ k: 'msg', text: g.round === 3 ? 'ФИНАЛЬНЫЙ РАУНД' : 'РАУНД ' + g.round }); emit({ k: 'sfx', n: 'bell' }); }
-    if (g.phaseT === 80) emit({ k: 'msg', text: 'БОЙ!', big: 1 });
-    if (g.phaseT >= 100) { g.phase = 'fight'; g.phaseT = 0; }
+    // со второго раунда сначала проходит ринг-гёрл, потом гонг
+    const pre = g.round > 1 ? RG_T : 0;
+    if (g.round > 1 && g.phaseT === 1) emit({ k: 'sfx', n: 'crowd' });
+    if (g.phaseT === pre + 1) { emit({ k: 'msg', text: g.round === 3 ? 'ФИНАЛЬНЫЙ РАУНД' : 'РАУНД ' + g.round }); emit({ k: 'sfx', n: 'bell' }); }
+    if (g.phaseT === pre + 80) emit({ k: 'msg', text: 'БОЙ!', big: 1 });
+    if (g.phaseT >= pre + 100) { g.phase = 'fight'; g.phaseT = 0; }
   } else if (g.phase === 'fight') {
     g.timer--;
     if (a.hp <= 0 || b.hp <= 0) endRound(a.hp <= 0 && b.hp <= 0 ? -1 : a.hp <= 0 ? 1 : 0, 'K.O.!');
@@ -736,6 +769,7 @@ function step() {
   } else { a.inp = EMPTY(); b.inp = EMPTY(); }
   g.remoteLatch = 0;
   updFighter(a, b); updFighter(b, a);
+  if (g.mode !== 'demo') bleed();
   checkHits(a, b); checkHits(b, a);
   separate(a, b);
   clinchLogic(a, b);
@@ -748,11 +782,13 @@ function step() {
 const Net = { peer: null, conn: null, role: null };
 
 const snapF = f => [Math.round(f.x * 10) / 10, Math.round(f.y * 10) / 10, f.face, Math.round(f.hp * 10) / 10,
-  Math.round(f.meter), f.st, f.mvId || 0, Math.round(f.mvT * 10) / 10, f.t, f.gkind || 0, f.gt, f.flash, f.downDur, f.crouchB ? 1 : 0];
+  Math.round(f.meter), f.st, f.mvId || 0, Math.round(f.mvT * 10) / 10, f.t, f.gkind || 0, f.gt, f.flash, f.downDur, f.crouchB ? 1 : 0,
+  [f.dmgZ.head || 0, f.dmgZ.body || 0, f.dmgZ.arm || 0, f.dmgZ.leg || 0]];
 
 function applySnapF(f, s) {
-  let mv, gk, cb;
-  [f.tx, f.ty, f.face, f.hp, f.meter, f.st, mv, f.mvT, f.t, gk, f.gt, f.flash, f.downDur, cb] = s;
+  let mv, gk, cb, dz;
+  [f.tx, f.ty, f.face, f.hp, f.meter, f.st, mv, f.mvT, f.t, gk, f.gt, f.flash, f.downDur, cb, dz] = s;
+  if (dz) f.dmgZ = { head: dz[0], body: dz[1], arm: dz[2], leg: dz[3] };
   if (f.x === undefined || Math.abs(f.tx - f.x) > 60) { f.x = f.tx; f.y = f.ty; }
   f.mvId = mv || null; f.mv = mv ? MOVES[mv] : null; f.gkind = gk || null; f.crouchB = !!cb;
 }
@@ -802,6 +838,7 @@ function tick() {
     Net.count = (Net.count || 0) + ((edges & 0xF0) ? 1 : 0);
     Net.lastIn = v;
     if (Net.tick % netEvery() === 0) { netSend({ t: 'i', v, l: Net.latch, c: Net.count }); Net.latch = 0; Net.count = 0; }
+    bleed();
     // между пакетами двигаем бойцов сами — без рывков
     for (const f of G.f) {
       f.t++;
@@ -831,6 +868,7 @@ function render(now) {
   c.setTransform(RS, 0, 0, RS, sx, sy);
   const si = G ? G.stage : menuStage;
   drawStageBack(c, si, now);
+  if (G && G.stains) for (const st of G.stains) { c.fillStyle = st.c; c.fillRect(st.x, st.y, st.w, 1); }
   if (G) {
     for (const f of G.f) {
       const k = 1 - Math.min(0.5, (GROUND - f.y) / 80);
@@ -839,19 +877,18 @@ function render(now) {
       c.fillRect(Math.round(f.x - w / 2), GROUND - 1, w, 2);
       c.fillRect(Math.round(f.x - w / 2) + 3, GROUND + 1, w - 6, 1);
     }
-    if (G.phase === 'walkout') {
-      const A = annState(G.phaseT);
-      c.fillStyle = 'rgba(0,0,0,0.35)'; c.fillRect(Math.round(A.x) - 10, GROUND - 1, 20, 2);
-      c.setTransform(1, 0, 0, 1, sx, sy);
-      drawFighterHD(c, ANNOUNCER, A.pose, A.x * RS, GROUND * RS, A.face, { mic: true });
-      c.setTransform(RS, 0, 0, RS, sx, sy);
+    // ринг-гёрл с табличкой раунда — между раундами
+    if (G.phase === 'intro' && G.round > 1 && G.phaseT < RG_T) {
+      const t = G.phaseT, x = -20 + t * (360 / RG_T);
+      c.fillStyle = 'rgba(0,0,0,0.35)'; c.fillRect(Math.round(x) - 7, GROUND - 1, 14, 2);
+      drawRingGirl(c, x, GROUND, t, G.round === 3 ? 'ФИНАЛ' : 'РАУНД ' + G.round);
     }
     const pri = f => (['held', 'down', 'ko'].includes(f.st) ? 0 : ['attack', 'grab'].includes(f.st) ? 2 : 1);
     c.setTransform(1, 0, 0, 1, sx, sy);
     [...G.f].sort((p, q) => pri(p) - pri(q)).forEach(f => {
       const ex = poseExtra(f);
       drawFighterHD(c, f.def, getPose(f), f.x * RS, (f.y + ex.dy) * RS, drawFace(f),
-        { flash: f.flash > 0, hat: f.st === 'win' || (f.st === 'taunt' && f.id === 'khabib'), rot: ex.rot });
+        { flash: f.flash > 0, hat: f.st === 'win' || (f.st === 'taunt' && f.id === 'khabib'), rot: ex.rot, dmg: f.dmgZ });
     });
     c.setTransform(RS, 0, 0, RS, sx, sy);
     for (const p of G.parts) {

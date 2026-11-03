@@ -371,6 +371,6 @@ function drawFighterHD(ctx, def, pose, X, Y, face, o = {}) {
   ctx.imageSmoothingEnabled = false;
   ctx.translate(Math.round(X), Math.round(Y));
   ctx.scale(PPU, PPU);
-  drawFighter(ctx, def, pose, 0, 0, face, { flash: o.flash, hat: o.hat, rot: o.rot, mic: o.mic });
+  drawFighter(ctx, def, pose, 0, 0, face, { flash: o.flash, hat: o.hat, rot: o.rot, mic: o.mic, dmg: o.dmg });
   ctx.restore();
 }

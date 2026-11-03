@@ -707,7 +707,72 @@ function drawFighter(ctx, def, pose, X, Y, face, o = {}) {
     ctx.fillStyle = C('#111'); ctx.fillRect(Math.round(J.fh[0]) + 1, Math.round(J.fh[1]) - 4, 2, 5);
     ctx.fillStyle = C('#9a9aa6'); ctx.fillRect(Math.round(J.fh[0]), Math.round(J.fh[1]) - 6, 4, 3);
   }
+  if (o.dmg && !o.flash) drawInjuries(ctx, o.dmg, { J, up, fwd, hc, R, s, at, tLen, pw: torsoW(tLen * 0.6) / 2, mid });
   ctx.restore();
+}
+
+// ринг-гёрл: идёт через октагон и держит над головой табличку раунда
+function drawRingGirl(ctx, X, Y, t, label) {
+  const x0 = Math.round(X), y0 = Math.round(Y);
+  const r = (x, y, w, h, c) => { ctx.fillStyle = c; ctx.fillRect(x0 + x, y0 + y, w, h); };
+  const skin = '#f0c4a0', skinD = '#c99a7a', hair = '#5a2a14', top = '#e01a4f', skirt = '#141414', boot = '#f2f2f2', OL = '#14090a';
+  const step = Math.sin(t * 0.3), sw = Math.round(step * 2.5);
+  // ноги в шаге
+  for (const [dx, lift, col] of [[-2 + sw, step > 0 ? 0 : 1, skinD], [1 - sw, step > 0 ? 1 : 0, skin]]) {
+    r(dx - 1, -26, 4, 20 - lift, OL); r(dx, -26, 2, 19 - lift, col);
+    r(dx - 1, -8 - lift, 4, 8, OL); r(dx, -8 - lift, 3, 7, boot); r(dx, -8 - lift, 3, 1, '#c8c8c8');
+  }
+  // мини-юбка
+  r(-5, -30, 11, 7, OL); r(-4, -29, 9, 5, skirt); r(-4, -29, 9, 1, '#3a3a3a');
+  // торс и топ
+  r(-4, -42, 9, 13, OL); r(-3, -41, 7, 12, skin);
+  r(-4, -41, 9, 5, OL); r(-3, -40, 7, 3, top); r(-1, -37, 3, 1, skinD);
+  // руки вверх держат табличку
+  r(-6, -55, 3, 15, OL); r(-5, -54, 1, 13, skinD);
+  r(4, -55, 3, 15, OL); r(5, -54, 1, 13, skin);
+  // голова и волосы с хвостом
+  r(-3, -50, 7, 8, OL); r(-2, -49, 5, 6, skin);
+  r(-3, -51, 7, 3, hair); r(-4, -49, 2, 7, hair); r(-6, -47 + Math.round(step), 2, 6, hair);
+  r(2, -47, 1, 1, '#2a1a12'); r(2, -44, 2, 1, '#c0394a');
+  // табличка
+  const w = label.length * 5 + 8;
+  r(-Math.round(w / 2) - 1, -66, w + 2, 12, OL); r(-Math.round(w / 2), -65, w, 10, '#f2f2f2');
+  r(-Math.round(w / 2), -65, w, 1, '#ffd23a'); r(-Math.round(w / 2), -56, w, 1, '#ffd23a');
+  ctx.fillStyle = '#c0262d';
+  ctx.font = '5px "Press Start 2P", monospace';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText(label, x0, y0 - 60);
+  ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+}
+
+// травмы: 5+ ударов в зону — синяки, 7+ — кровь, 15+ — перелом (кость), на голове — заплывший глаз
+const BRUISE = ['#5b3a6e', '#7a4a7c', '#4a2c58'], BLOOD = ['#b0101a', '#8a0c14', '#d01a24'], BONE = '#ece4cc';
+function drawInjuries(ctx, dmg, g) {
+  const { J, up, fwd, hc, R, s, at, tLen, pw, mid } = g;
+  const px = (p, col, w = 1, h = 1) => { ctx.fillStyle = col; ctx.fillRect(Math.round(p[0]), Math.round(p[1]), w, h); };
+  const H = (u, v) => [hc[0] + fwd[0] * u + up[0] * v, hc[1] + fwd[1] * u + up[1] * v];
+  const drip = (p, n) => { for (let i = 0; i < n; i++) px([p[0], p[1] + i], BLOOD[i % 2], 1, 1); };
+  // голова
+  const h = dmg.head || 0;
+  if (h >= 5) { px(H(R * 0.45, R * 0.05), BRUISE[0], 2, 1); px(H(R * 0.55, -R * 0.15), BRUISE[1]); px(H(R * 0.75, R * 0.5), BRUISE[2]); }
+  if (h >= 7) { px(H(R * 0.55, R * 0.55), BLOOD[2], 2, 1); drip(H(R * 0.65, R * 0.4), 3 + Math.min(4, h - 7)); px(H(R * 0.9, -R * 0.3), BLOOD[1]); }
+  if (h >= 15) { px(H(R * 0.4, R * 0.1), '#3a1f48', 3, 2); drip(H(R * 0.3, -R * 0.2), 5); drip(H(R * 0.85, 0), 4); }
+  // корпус
+  const b = dmg.body || 0;
+  if (b >= 5) { px(at(tLen * 0.45, pw * 0.35), BRUISE[0], 2, 2); px(at(tLen * 0.62, -pw * 0.1), BRUISE[1], 2, 1); px(at(tLen * 0.3, pw * 0.7), BRUISE[2]); }
+  if (b >= 7) { drip(at(tLen * 0.7, pw * 0.45), 4 + Math.min(4, b - 7)); px(at(tLen * 0.5, pw * 0.6), BLOOD[2], 2, 1); }
+  if (b >= 15) { const r0 = at(tLen * 0.55, pw * 0.95), r1 = at(tLen * 0.55, pw * 0.95 + 3 * s); px(r0, BLOOD[0], 2, 2); px(r1, BONE, 2, 1); px(mid(r0, r1, 0.5), BONE); }
+  // передняя рука (предплечье) и нога (голень)
+  for (const [z, a, c] of [['arm', J.fe, J.fh], ['leg', J.fk, J.ff]]) {
+    const n = dmg[z] || 0, p = mid(a, c, 0.45);
+    if (n >= 5) { px(p, BRUISE[0], 2, 2); px(mid(a, c, 0.25), BRUISE[1]); }
+    if (n >= 7) drip(mid(a, c, 0.55), 3 + Math.min(3, n - 7));
+    if (n >= 15) {
+      const dx = c[0] - a[0], dy = c[1] - a[1], l = Math.hypot(dx, dy) || 1, ox = -dy / l, oy = dx / l;
+      px(p, BLOOD[0], 2, 2);
+      for (let i = 1; i <= 3; i++) px([p[0] + ox * i * s, p[1] + oy * i * s - (oy > 0 ? 0 : 0)], BONE, 2, 1);
+    }
+  }
 }
 
 // мировая координата сустава
