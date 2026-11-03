@@ -64,8 +64,8 @@ function applyFx(e) {
   if (!G) return;
   const demo = G.mode === 'demo';
   switch (e.k) {
-    case 'sfx': Sound.sfx(e.n); break;
-    case 'spark': spark(e.x, e.y, e.big, e.blk); break;
+    case 'sfx': if (!localEcho(e)) Sound.sfx(e.n); break;
+    case 'spark': if (!localEcho(e)) spark(e.x, e.y, e.big, e.blk); break;
     case 'dust': dust(e.x); break;
     case 'heart': for (let i = 0; i < 3; i++) G.parts.push({ x: e.x, y: e.y, vx: e.d * (0.6 + Math.random() * 0.8), vy: -0.4 - Math.random() * 0.6, l: 50, c: ['#ff4f8b', '#ff7aa8', '#ff2e63'][i], heart: 1 }); break;
     case 'shake': G.shake = Math.max(G.shake, e.v); break;
@@ -407,8 +407,8 @@ function applyHit(a, d, h, m, pt, zone = 'body') {
   else if (armored && !h.kd) { /* Нганну не сбить с замаха */ }
   else if (heavy || d.y < GROUND - 1) knock(d, a, h, false);
   else { d.mv = null; d.mvId = null; d.st = 'hit'; d.t = 0; d.stun = h.stun; d.vx = a.face * h.kb; }
-  emit({ k: 'spark', x: pt[0], y: pt[1], big: heavy ? 1 : 0 });
-  emit({ k: 'sfx', n: heavy ? 'heavy' : m.cat === 'k' ? 'kick' : 'punch' });
+  emit({ k: 'spark', x: pt[0], y: pt[1], big: heavy ? 1 : 0, by: a.side });
+  emit({ k: 'sfx', n: heavy ? 'heavy' : m.cat === 'k' ? 'kick' : 'punch', by: a.side });
   G.hitstop = heavy ? 9 : 3 + (dmg / 5 | 0);
   if (heavy) emit({ k: 'shake', v: 5 });
 }
@@ -877,6 +877,25 @@ function applySnapF(f, s, own) {
   f.mvId = mv || null; f.mv = mv ? MOVES[mv] : null; f.gkind = gk || null; f.crouchB = !!cb;
 }
 
+// у друга: свой удар попал — сразу искры, звук и вспышка (урон всё равно присылает хост)
+function predictHit(a, d) {
+  if (a.st !== 'attack' || !a.mv || !a.mv.hits.length) return;
+  const pose = getPose(a);
+  a.mv.hits.forEach((h, i) => {
+    if (a.hitDone[i] || a.mvT < h.s || a.mvT > h.e) return;
+    const hz = hitZone(d, strikeSeg(a, pose, h.limb));
+    if (!hz) return;
+    a.hitDone[i] = true;
+    const heavy = !!h.kd || h.dmg >= 13;
+    spark(hz.at[0], hz.at[1], heavy, d.st === 'block');
+    Sound.sfx(d.st === 'block' ? 'block' : heavy ? 'heavy' : a.mv.cat === 'k' ? 'kick' : 'punch');
+    d.flash = 3; Net.localHitT = performance.now();
+    if (heavy) G.shake = Math.max(G.shake, 4);
+  });
+}
+// эффект от хоста про удар друга, который друг уже показал у себя, — не дублируем
+const localEcho = e => G && G.mode === 'guest' && e.by === 1 && performance.now() - (Net.localHitT || 0) < 600;
+
 function netSend(o) {
   try {
     if (Net.p2p && Net.p2p.open && (o.t === 's' || o.t === 'i')) { Net.p2p.send(o); return; }
@@ -932,6 +951,7 @@ function tick() {
     const predict = G.phase === 'fight' && !FORCED.includes(me.hostSt) && !FORCED.includes(me.st);
     if (predict) {
       me.inp = I; updFighter(me, op); me.prev = I;
+      predictHit(me, op);
       if (me.tx !== undefined) {
         if (Math.abs(me.tx - me.x) > 40) me.x = me.tx; else me.x += (me.tx - me.x) * 0.08;
       }
@@ -941,7 +961,7 @@ function tick() {
       if (f === me && predict) continue;
       f.t++;
       if (f.st === 'attack' && f.mv) f.mvT += f.def.spd;
-      if (f.tx !== undefined) { f.x += (f.tx - f.x) * 0.3; f.y += (f.ty - f.y) * 0.3; }
+      if (f.tx !== undefined) { f.x += (f.tx - f.x) * 0.45; f.y += (f.ty - f.y) * 0.45; }
     }
     updateParts();
     return;
