@@ -81,6 +81,9 @@ const saveFlow = () => { try { localStorage.setItem('pml_flow', JSON.stringify({
 // смена экрана: пиксельная шторка и вылет элементов по очереди
 let curScreen = null;
 function replay(el, cls) { el.classList.remove(cls); void el.offsetWidth; el.classList.add(cls); }
+// шторка убирается полностью, как только проехала последняя полоса
+$('wipe').lastElementChild.addEventListener('animationend', () => $('wipe').classList.remove('go'));
+$('flash').addEventListener('animationend', () => $('flash').classList.remove('go'));
 function show(id) {
   const changed = curScreen !== id;
   document.querySelectorAll('.screen').forEach(s => s.classList.toggle('hidden', s.id !== id));
