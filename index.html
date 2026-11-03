@@ -14,7 +14,7 @@
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><text y='14' font-size='14'>🥊</text></svg>">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=1793709472">
+<link rel="stylesheet" href="style.css?v=1793711053">
 </head>
 <body>
 <div id="stage">
@@ -48,12 +48,13 @@
 <div id="rotHint">🔄 ПОВЕРНИ ТЕЛЕФОН —<br>БУДЕТ НА ВЕСЬ ЭКРАН</div>
 
 <div id="touch" class="hidden">
-  <div id="stick"><div id="knob"></div></div>
+  <div id="stickZone"><div id="stick"><div id="knob"></div><i class="ring"></i></div></div>
   <div id="pad">
     <button class="tb s" data-k="s">⚡<small>СПЕШЛ</small></button>
     <button class="tb p" data-k="p">👊<small>РУКА</small></button>
     <button class="tb k" data-k="k">🦶<small>НОГА</small></button>
     <button class="tb b" data-k="b">🛡<small>БЛОК</small></button>
+    <button class="tb j" data-k="j">⤒<small>ПРЫЖОК</small></button>
   </div>
 </div>
 
@@ -192,8 +193,12 @@
   <h2>КАК ИГРАТЬ</h2>
   <div class="help">
     <p><b>КОМПЬЮТЕР</b></p>
-    <p>← → — ходить · ↑ — прыжок · ↓ — присесть</p>
+    <p>← → — ходить · ↓ — присесть · I — прыжок</p>
     <p>J — рука · K — нога · L — спешл · ПРОБЕЛ — блок</p>
+    <p><b>18 УДАРОВ ПО НАПРАВЛЕНИЯМ</b> (джойстик/стрелки + рука/нога):</p>
+    <p>Рука: · джеб · → кросс · ↑ оверхенд · ↗ хук · ↖ локоть с разворота · ← бэкфист · ↓ апперкот · ↘ в печень · ↙ джеб в корпус</p>
+    <p>Нога: · фронт-кик · → хай-кик · ↑ топор · ↗ «вопрос» в голову · ↖ назад с разворота · ← вертуха · ↓ ЛОУ-КИК · ↘ в корпус · ↙ по икре</p>
+    <p>Лоу-кики копятся: после 6 соперник хромает и двигается медленнее.</p>
     <p><b>ТЕЛЕФОН</b></p>
     <p>Слева джойстик, справа кнопки.</p>
     <p><b>ПРИЁМЫ</b></p>
@@ -226,11 +231,11 @@
 
 <script src="https://unpkg.com/mqtt@5.10.1/dist/mqtt.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"></script>
-<script src="js/audio.js?v=1793709472"></script>
-<script src="js/fighters.js?v=1793709472"></script>
-<script src="js/stages.js?v=1793709472"></script>
-<script src="js/sprite.js?v=1793709472"></script>
-<script src="js/game.js?v=1793709472"></script>
-<script src="js/ui.js?v=1793709472"></script>
+<script src="js/audio.js?v=1793711053"></script>
+<script src="js/fighters.js?v=1793711053"></script>
+<script src="js/stages.js?v=1793711053"></script>
+<script src="js/sprite.js?v=1793711053"></script>
+<script src="js/game.js?v=1793711053"></script>
+<script src="js/ui.js?v=1793711053"></script>
 </body>
 </html>

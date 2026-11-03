@@ -6,7 +6,7 @@ const isTouch = () => matchMedia('(pointer: coarse)').matches || 'ontouchstart' 
 const Input = (() => {
   const kb = {}, touch = EMPTY(), tapped = {};
   const MAP = {
-    ArrowLeft: 'l', KeyA: 'l', ArrowRight: 'r', KeyD: 'r', ArrowUp: 'u', KeyW: 'u', ArrowDown: 'd', KeyS: 'd',
+    ArrowLeft: 'l', KeyA: 'l', ArrowRight: 'r', KeyD: 'r', ArrowUp: 'u', KeyW: 'u', ArrowDown: 'd', KeyS: 'd', KeyI: 'j', KeyN: 'j',
     KeyJ: 'p', KeyZ: 'p', KeyK: 'k', KeyX: 'k', KeyL: 's', KeyC: 's', Space: 'b', ShiftLeft: 'b', ShiftRight: 'b', KeyV: 'b',
   };
   addEventListener('keydown', e => {
@@ -20,20 +20,34 @@ const Input = (() => {
   // джойстик
   const stick = $('stick'), knob = $('knob');
   let sid = null;
+  // 8 секторов по 45°: каждое направление — свой удар
   const setStick = (dx, dy) => {
-    const r = stick.clientWidth / 2, len = Math.hypot(dx, dy), m = Math.min(len, r * 0.6);
+    const r = stick.clientWidth / 2, len = Math.hypot(dx, dy), m = Math.min(len, r * 0.62);
     const nx = len ? dx / len : 0, ny = len ? dy / len : 0;
     knob.style.transform = `translate(${nx * m}px, ${ny * m}px)`;
-    const vx = dx / r, vy = dy / r;
-    touch.l = vx < -0.32 ? 1 : 0; touch.r = vx > 0.32 ? 1 : 0;
-    touch.u = vy < -0.62 ? 1 : 0; touch.d = vy > 0.45 ? 1 : 0;
+    touch.l = touch.r = touch.u = touch.d = 0;
+    if (len < r * 0.28) { stick.dataset.dir = ''; return; }
+    const sec = Math.round(Math.atan2(dy, dx) / (Math.PI / 4));
+    const DIR = { 0: 'r', 1: 'rd', 2: 'd', 3: 'ld', 4: 'l', '-4': 'l', '-3': 'lu', '-2': 'u', '-1': 'ru' }[sec] || '';
+    for (const ch of DIR) touch[ch] = 1;
+    stick.dataset.dir = DIR;
   };
   const stickMove = e => {
     if (e.pointerId !== sid) return;
     const b = stick.getBoundingClientRect();
     setStick(e.clientX - b.left - b.width / 2, e.clientY - b.top - b.height / 2);
   };
-  stick.addEventListener('pointerdown', e => { sid = e.pointerId; stick.setPointerCapture(sid); stickMove(e); e.preventDefault(); });
+  // плавающий джойстик: центр там, где коснулся пальцем в левой половине
+  const zone = $('stickZone');
+  zone.addEventListener('pointerdown', e => {
+    sid = e.pointerId; zone.setPointerCapture(sid);
+    const zr = zone.getBoundingClientRect(), half = stick.offsetWidth / 2;
+    stick.style.left = (e.clientX - zr.left - half) + 'px'; stick.style.top = (e.clientY - zr.top - half) + 'px'; stick.style.bottom = 'auto';
+    stick.classList.add('on'); stickMove(e); e.preventDefault();
+  });
+  zone.addEventListener('pointermove', stickMove);
+  const zoneEnd = e => { if (e.pointerId === sid) { sid = null; setStick(0, 0); stick.classList.remove('on'); } };
+  zone.addEventListener('pointerup', zoneEnd); zone.addEventListener('pointercancel', zoneEnd);
   stick.addEventListener('pointermove', stickMove);
   const stickEnd = e => { if (e.pointerId === sid) { sid = null; setStick(0, 0); } };
   stick.addEventListener('pointerup', stickEnd);

@@ -126,7 +126,7 @@ const MORE = [
   ['asilva', 'АНДЕРСОН СИЛВА', 'Паук', '🇧🇷', 'Гений контратак. Уклоняется и наказывает.', 'sp_left', 'КОНТРУДАР ПАУКА', [8, 9, 6, 9], 1.08, 0.9, '#8a5634', '#111', 'bald', 'goatee', '#151515', '#ffd200', 0, 'oliveira', 'из Куритибы, Бразилия', 'Андерсон «Паук» Силва'],
   ['fedor', 'ФЁДОР', 'Император', '🇷🇺', 'Последний император. Бьёт тяжело, добивает в партере.', 'sp_takedown', 'ДОБИВАНИЕ ИМПЕРАТОРА', [9, 7, 9, 6], 1.06, 1.25, '#e8b896', '#5a3e2a', 'short', 'none', '#1c1c1c', '#c8202a', 0, 'khabib', 'из Старого Оскола', 'Фёдор «Последний император» Емельяненко'],
   ['pereira', 'ПЕРЕЙРА', 'Поатан', '🇧🇷', 'Каменная левая. Один хук — и всё.', 'sp_left', 'ЛЕВЫЙ ХУК ПОАТАНА', [10, 7, 3, 9], 1.12, 1.05, '#a86a42', '#111', 'short', 'stubble', '#1f8a3c', '#f3d33a', 0, 'adesanya', 'из Сан-Паулу, Бразилия', 'Алекс «Поатан» Перейра'],
-  ['makhachev', 'МАХАЧЕВ', 'Ислам', '🇷🇺', 'Душит всех. Борьба и самбо высшей пробы.', 'sp_choke', 'УДУШЕНИЕ МАХАЧЕВА', [7, 8, 10, 6], 1.0, 1.08, '#d6a07a', '#141010', 'short', 'full', '#1c1c1c', '#d2a536', 0, 'khabib', 'из Махачкалы, Дагестан', 'Ислам Махачев'],
+  ['makhachev', 'МАХАЧЕВ', 'Ислам', '🇷🇺', 'Левша-самбист: бросает через бедро и душит.', 'sp_choke', 'БРОСОК ЧЕРЕЗ БЕДРО', [7, 8, 10, 6], 1.03, 0.98, '#e0b08a', '#2a1d14', 'mullet', 'goatee', '#f2f2f2', '#1d8a3c', 0, 'khabib', 'из Махачкалы, Дагестан', 'Ислам Махачев'],
   ['volkanovski', 'ВОЛКАНОВСКИ', 'Великий', '🇦🇺', 'Невысокий танк. Темп и комбинации.', 'sp_flurry', 'СЕРИЯ ВЕЛИКОГО', [7, 9, 8, 5], 0.92, 1.12, '#e8b896', '#4a3424', 'short', 'stubble', '#1f4fb0', '#f3d33a', 0, 'poirier', 'из Шеллхарбора, Австралия', 'Александр «Великий» Волкановски'],
   ['holloway', 'ХОЛЛОУЭЙ', 'Благословенный', '🇺🇸', 'Самый объёмный ударник в истории.', 'sp_flurry', 'ШТОРМ ХОЛЛОУЭЯ', [7, 10, 5, 7], 0.98, 0.95, '#c68a5e', '#111', 'short', 'goatee', '#0f7a6a', '#f2f2f2', 0, 'adesanya', 'из Вайанаэ, Гавайи', 'Макс «Благословенный» Холлоуэй'],
   ['usman', 'УСМАН', 'Кошмар', '🇳🇬', 'Давит борьбой и тяжёлым правым.', 'sp_takedown', 'КОШМАРНЫЙ ПРОХОД', [8, 7, 9, 7], 1.0, 1.15, '#5a3520', '#000', 'bald', 'stubble', '#151515', '#2aa04a', 0, 'adesanya', 'из Аучи, Нигерия', 'Камару «Ночной кошмар» Усман'],
@@ -137,7 +137,7 @@ const MORE = [
   ['gaethje', 'ГЭТЖИ', 'Шоумен', '🇺🇸', 'Рубака. Лоу-кики и бомбы без остановки.', 'sp_bomb', 'БОМБА ШОУМЕНА', [9, 7, 5, 6], 1.0, 1.08, '#f0c8a8', '#5a3e2a', 'short', 'none', '#151515', '#ff8a1a', 0, 'poirier', 'из Сафорда, США', 'Джастин «Шоумен» Гэтжи'],
   ['omalley', 'О’МЭЛЛИ', 'Шуга', '🇺🇸', 'Длинный снайпер. Дразнит и выключает.', 'sp_left', 'ПРЯМОЙ ШУГИ', [7, 9, 3, 9], 1.02, 0.82, '#f0c8a8', '#e85aa8', 'short', 'stubble', '#e85aa8', '#2ad0ff', 0, 'pimblett', 'из Хелены, США', 'Шон «Шуга» О’Мэлли', 'chest'],
   ['topuria', 'ТОПУРИЯ', 'Матадор', '🇬🇪', 'Нокаутёр с борьбой. Бьёт сериями.', 'sp_flurry', 'КОРРИДА МАТАДОРА', [9, 8, 8, 5], 0.96, 1.1, '#e3ad86', '#141010', 'short', 'full', '#c8202a', '#f2f2f2', 0, 'tsarukyan', 'из Аликанте, Испания', 'Илия «Эль Матадор» Топурия'],
-  ['chimaev', 'ЧИМАЕВ', 'Борз', '🇦🇪', 'Волк. Хватает и не отпускает.', 'sp_takedown', 'ХВАТКА БОРЗА', [8, 8, 10, 6], 1.02, 1.2, '#e3ad86', '#141010', 'short', 'full', '#151515', '#1d8a3c', 0, 'khabib', 'из Чечни', 'Хамзат «Борз» Чимаев'],
+  ['chimaev', 'ЧИМАЕВ', 'Борз', '🇦🇪', 'Волк. Хватает и не отпускает.', 'sp_takedown', 'ХВАТКА БОРЗА', [8, 8, 10, 6], 1.02, 1.2, '#efc2a0', '#141010', 'bald', 'full', '#151515', '#1d8a3c', 0, 'khabib', 'из Чечни', 'Хамзат «Борз» Чимаев'],
   ['aspinall', 'АСПИНАЛЛ', 'Молния', '🇬🇧', 'Тяжеловес со скоростью лёгкого.', 'sp_left', 'МОЛНИЯ АСПИНАЛЛА', [9, 9, 8, 8], 1.12, 1.25, '#f0c8a8', '#5a3e2a', 'short', 'stubble', '#151515', '#1f4fb0', 0, 'mcgregor', 'из Солфорда, Англия', 'Том Аспиналл'],
   ['gane', 'ГАН', 'Бон Гамен', '🇫🇷', 'Подвижный тяжеловес-кикбоксер.', 'sp_spin', 'ВЕРТУШКА ГАНА', [7, 9, 5, 9], 1.14, 1.15, '#5a3520', '#000', 'short', 'none', '#1f4fb0', '#f2f2f2', 0, 'adesanya', 'из Ла-Рошели, Франция', 'Сирил «Бон Гамен» Ган'],
   ['prochazka', 'ПРОХАЗКА', 'Самурай', '🇨🇿', 'Безумный стиль: руки опущены, удары отовсюду.', 'sp_elbow', 'УДАР САМУРАЯ', [9, 8, 5, 8], 1.08, 1.05, '#efc2a0', '#4a2e1a', 'mullet', 'full', '#151515', '#c8202a', 0, 'jones', 'из Брно, Чехия', 'Иржи Прохазка'],
@@ -300,7 +300,7 @@ const MOVES = {
   highKick: { cat: 'k', len: 34, cancel: 19, keys: [[0,'idle'],[7,'highW'],[12,'high'],[18,'high'],[34,'idle']],
            hits: [{ s: 12, e: 15, limb: 'bf', dmg: 12, kb: 3, stun: 24 }] },
   lowKick: { cat: 'k', len: 26, cancel: 14, keys: [[0,'idle'],[5,'lowW'],[9,'low'],[14,'low'],[26,'idle']],
-           hits: [{ s: 9, e: 12, limb: 'bf', dmg: 6, kb: 1, stun: 15 }] },
+           hits: [{ s: 9, e: 13, limb: 'bf', dmg: 8, kb: 1, stun: 20 }] },
   airPunch: { cat: 'p', air: true, len: 20, keys: [[0,'jump'],[3,'airPunch'],[12,'airPunch'],[20,'jump']],
            hits: [{ s: 3, e: 14, limb: 'fh', dmg: 6, kb: 2, stun: 15 }] },
   airKick: { cat: 'k', air: true, len: 24, keys: [[0,'jump'],[4,'airKick'],[16,'airKick'],[24,'jump']],
@@ -391,6 +391,13 @@ const MOVES = {
   wallKick: { cat: 'k', air: true, len: 26, jump: [1, -3.2], lunge: [1, 16, 3.2], keys: [[0,'jump'],[3,'wkick'],[18,'wkick'],[26,'jump']],
            hits: [{ s: 3, e: 18, limb: 'ff', dmg: 14, kb: 4, stun: 26, kd: true }], whoosh: 'spin' },
 
+  // вверх-назад + рука: локоть с разворота
+  spinElbowG: { cat: 'p', len: 28, spinAir: [2, 9], lunge: [3, 10, 1.4], keys: [[0,'idle'],[5,'spinW'],[10,'elbow'],[16,'elbow'],[28,'idle']],
+           hits: [{ s: 9, e: 13, limb: 'be', dmg: 12, kb: 3, stun: 24 }], whoosh: 'spin' },
+  // вверх-вперёд + нога: «вопросительный» — финт фронт-киком в удар в голову
+  questionKick: { cat: 'k', len: 32, keys: [[0,'idle'],[5,'teepW'],[10,'high'],[17,'high'],[32,'idle']],
+           hits: [{ s: 10, e: 13, limb: 'bf', dmg: 11, kb: 3, stun: 24 }] },
+
   // ---- Спешлы
   sp_scouse: { cat: 's', len: 50, lunge: [0, 30, 1.5], keys: [[0,'idle'],[4,'hookW'],[8,'hook'],[13,'ovhW'],[17,'ovh'],[22,'hookW'],[26,'hook'],[31,'upperW'],[34,'upper'],[41,'upper'],[50,'idle']],
            hits: [{ s: 8, e: 10, limb: 'fh', dmg: 6, kb: 0.6, stun: 22 }, { s: 17, e: 19, limb: 'bh', dmg: 6, kb: 0.6, stun: 22 },
@@ -405,7 +412,7 @@ const MOVES = {
            hits: [{ s: 21, e: 26, limb: 'bh', dmg: 21, kb: 3, stun: 40, kd: true }] },
   sp_knee: { cat: 's', len: 36, jump: [6, -3.6], lunge: [6, 20, 3.2], keys: [[0,'crouch'],[6,'knee'],[24,'knee'],[36,'idle']],
            hits: [{ s: 8, e: 19, limb: 'fk', dmg: 19, kb: 4, stun: 36, kd: true }] },
-  sp_left: { cat: 's', len: 26, lunge: [2, 8, 2.8], keys: [[0,'idle'],[4,'leftS'],[14,'leftS'],[26,'idle']],
+  sp_left: { cat: 's', len: 26, lunge: [2, 8, 1.1], keys: [[0,'idle'],[4,'leftS'],[14,'leftS'],[26,'idle']],
            hits: [{ s: 4, e: 8, limb: 'fh', dmg: 21, kb: 4, stun: 40, kd: true }] },
   sp_spin: { cat: 's', len: 40, jump: [3, -3.6], lunge: [3, 14, 0.6], spinAir: [3, 18], keys: [[0,'crouch'],[3,'jump'],[14,'spinKW'],[19,'spinK'],[27,'spinK'],[40,'idle']],
            hits: [{ s: 15, e: 26, limb: 'bf', dmg: 19, kb: 5, stun: 36, kd: true }] },
@@ -419,6 +426,48 @@ const MOVES = {
            hits: [{ s: 8, e: 10, limb: 'fh', dmg: 5, kb: 0.5, stun: 22 }, { s: 13, e: 15, limb: 'fh', dmg: 5, kb: 0.5, stun: 22 },
                   { s: 18, e: 20, limb: 'bh', dmg: 8, kb: 0.8, stun: 24 }, { s: 24, e: 27, limb: 'fh', dmg: 9, kb: 3.5, stun: 36, kd: true }] },
 };
+
+// ---- Уникальные спешлы: у ударников — своя фирменная серия, у борцов — свой приём с силой по уровню
+function comboSpecial(seq, lunge = 1.2) {
+  const keys = [[0, 'idle']], hits = [];
+  let t = 2;
+  seq.forEach((id, i) => {
+    const m = MOVES[id], h = m.hits[0];
+    const strike = m.keys.filter(k => k[0] <= h.s).pop()[1];
+    const wind = m.keys[1][1] === strike ? 'idle' : m.keys[1][1];
+    keys.push([t, wind]); t += 4; keys.push([t, strike]);
+    const last = i === seq.length - 1;
+    hits.push({ s: t, e: t + 3, limb: h.limb, dmg: Math.round(h.dmg * (last ? 1.35 : 0.75)), kb: last ? 4 : 0.6, stun: last ? 36 : 24, kd: last });
+    t += 5;
+  });
+  keys.push([t + 10, 'idle']);
+  return { cat: 's', len: t + 10, lunge: [0, t, lunge], keys, hits };
+}
+const grabSpecial = (kind, opts = {}) => ({ cat: 's', len: 32, lunge: [4, 15, 3.2], keys: [[0,'crouch'],[6,'shoot'],[22,'shoot'],[32,'idle']],
+  hits: [], grab: { s: 6, e: 17, r: 30, kind, ...opts } });
+const SPECIALS = {
+  gsp: grabSpecial('td', { dmg: 12 }), asilva: comboSpecial(['jab', 'teep', 'elbowS', 'kneeS'], 1.4),
+  fedor: grabSpecial('gnp', { hits: 7, dmg: 4.2 }), pereira: comboSpecial(['lowKick', 'calfKick', 'hookP']),
+  makhachev: grabSpecial('throw', { dmg: 16 }), volkanovski: comboSpecial(['jab', 'cross', 'lowKick', 'hookP', 'upper']),
+  holloway: comboSpecial(['jab', 'cross', 'jab', 'cross', 'bodyHook', 'hookP'], 1.0), usman: comboSpecial(['jab', 'cross', 'overhand']),
+  cormier: grabSpecial('throw', { dmg: 18 }), miocic: comboSpecial(['jab', 'cross', 'bodyHook', 'hookP']),
+  lesnar: grabSpecial('td', { dmg: 16 }), ndiaz: comboSpecial(['jab', 'jab', 'jab', 'cross'], 0.8),
+  gaethje: comboSpecial(['lowKick', 'lowKick', 'overhand']), omalley: comboSpecial(['teep', 'cross', 'spinBackKick'], 1.0),
+  topuria: comboSpecial(['bodyHook', 'hookP', 'upper']), chimaev: grabSpecial('gnp', { hits: 8, dmg: 3 }),
+  aspinall: comboSpecial(['jab', 'cross', 'hookP'], 2.0), gane: comboSpecial(['teep', 'lowKick', 'questionKick']),
+  prochazka: comboSpecial(['spinElbowG', 'upper', 'highKick']), dricus: comboSpecial(['cross', 'hookP', 'overhand', 'kneeS']),
+  merab: grabSpecial('td', { dmg: 9 }), edwards: comboSpecial(['jab', 'bodyKick', 'highKick']),
+  belal: grabSpecial('td', { dmg: 11 }), masvidal: comboSpecial(['superman', 'cross', 'kneeS']),
+  velasquez: grabSpecial('gnp', { hits: 9, dmg: 2.7 }), jds: comboSpecial(['jab', 'overhand', 'upper']),
+  shogun: comboSpecial(['kneeS', 'kneeBody', 'kneeS', 'highKick']), wanderlei: comboSpecial(['hookP', 'hook', 'hookP', 'hook', 'kneeS']),
+  liddell: comboSpecial(['overhand', 'upper', 'overhand']), penn: grabSpecial('guillotine', { drain: 0.36 }),
+  ali: comboSpecial(['jab', 'jab', 'jab', 'cross', 'hookP'], 1.4), mayweather: comboSpecial(['jab', 'cross', 'upper', 'cross']),
+  pacquiao: comboSpecial(['jab', 'cross', 'jab', 'cross', 'hookP', 'upper'], 1.3), lomachenko: comboSpecial(['jab', 'bodyJab', 'hookP', 'upper'], 1.6),
+  wklitschko: comboSpecial(['jab', 'jab', 'cross']), fury: comboSpecial(['jab', 'upper', 'cross', 'hookP']),
+  canelo: comboSpecial(['bodyHook', 'upper', 'hookP']), joshua: comboSpecial(['jab', 'cross', 'upper']),
+  ggg: comboSpecial(['jab', 'hookP', 'bodyHook', 'hookP']),
+};
+for (const [id, mv] of Object.entries(SPECIALS)) { MOVES['sp_' + id] = mv; if (FIGHTER[id]) FIGHTER[id].special = 'sp_' + id; }
 
 const JOINTS = ['hip', 'neck', 'fe', 'fh', 'be', 'bh', 'fk', 'ff', 'bk', 'bf'];
 const JI = Object.fromEntries(JOINTS.map((j, i) => [j, i]));
@@ -442,9 +491,9 @@ function keyPose(keys, t) {
 const BODY = {
   lean: ['adesanya', 'omalley', 'asilva', 'ndiaz', 'lomachenko', 'oliveira', 'mcgregor', 'jones', 'usyk', 'gane', 'pereira', 'prochazka',
          'holloway', 'edwards', 'pacquiao', 'mayweather', 'ali'],
-  muscle: ['tyson', 'lesnar', 'ngannou', 'joshua', 'chimaev', 'tsarukyan', 'topuria', 'gsp', 'usman', 'dricus', 'gaethje', 'masvidal',
+  muscle: ['makhachev', 'tyson', 'lesnar', 'ngannou', 'joshua', 'chimaev', 'tsarukyan', 'topuria', 'gsp', 'usman', 'dricus', 'gaethje', 'masvidal',
            'wklitschko', 'aspinall'],
-  stocky: ['khabib', 'makhachev', 'poirier', 'canelo', 'ggg', 'volkanovski', 'merab', 'belal', 'miocic', 'jds', 'shogun', 'wanderlei',
+  stocky: ['khabib', 'poirier', 'canelo', 'ggg', 'volkanovski', 'merab', 'belal', 'miocic', 'jds', 'shogun', 'wanderlei',
            'velasquez', 'pimblett'],
   heavy: ['fury', 'fedor', 'cormier', 'liddell', 'penn'],
 };

@@ -4,8 +4,8 @@ const cv = document.getElementById('game');
 const ctx = cv.getContext('2d');
 ctx.imageSmoothingEnabled = false;
 
-const EMPTY = () => ({ l: 0, r: 0, u: 0, d: 0, p: 0, k: 0, s: 0, b: 0 });
-const KEYS8 = ['l', 'r', 'u', 'd', 'p', 'k', 's', 'b'];
+const EMPTY = () => ({ l: 0, r: 0, u: 0, d: 0, p: 0, k: 0, s: 0, b: 0, j: 0 });
+const KEYS8 = ['l', 'r', 'u', 'd', 'p', 'k', 's', 'b', 'j'];
 const encIn = I => KEYS8.reduce((v, k, i) => v | (I[k] ? 1 << i : 0), 0);
 const decIn = v => Object.fromEntries(KEYS8.map((k, i) => [k, (v >> i) & 1]));
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -108,9 +108,12 @@ function updateParts() {
 }
 
 // ---------- Травмы: счёт ударов по зонам, сообщения и кровь
+// после 4 лоу-киков нога «садится»: каждый следующий удар по ноге замедляет на 6%, до −45%
+const limp = f => Math.max(0.55, 1 - Math.max(0, (f.dmgZ.leg || 0) - 3) * 0.06);
 function injure(d, zone) {
   d.dmgZ[zone] = (d.dmgZ[zone] || 0) + 1;
   const n = d.dmgZ[zone];
+  if (zone === 'leg' && n === 6) emit({ k: 'msg', text: 'ХРОМАЕТ!' });
   if (n === 7) emit({ k: 'msg', text: zone === 'head' ? 'РАССЕЧЕНИЕ!' : 'КРОВЬ!' });
   if (n === 15) emit({ k: 'msg', text: zone === 'head' ? 'ГЛАЗ ЗАПЛЫЛ!' : 'ПЕРЕЛОМ!' });
 }
@@ -129,16 +132,19 @@ function bleed() {
 }
 
 // ---------- Ввод ударов
-function pickMove(f, btn, fwd, down, back, near) {
+// джойстик на 360°: 9 направлений × рука/нога = 18 ударов (+ вплотную, в прыжке, сальто, из блока)
+function pickMove(f, btn, fwd, down, back, near, up) {
   if (btn === 'p') {
     if (near && down && !fwd && !back) return 'shortUpper';
+    if (up) return fwd ? 'hookP' : back ? 'spinElbowG' : 'overhand';
     if (down) return fwd ? 'bodyHook' : back ? 'bodyJab' : 'upper';
     if (back) return 'backfist';
     if (near && !fwd) return 'elbowS';
     return fwd ? 'cross' : 'jab';
   }
   if (near && down && !fwd && !back) return 'kneeBody';
-  if (down) return fwd ? 'bodyKick' : back ? 'axeKick' : 'lowKick';
+  if (up) return fwd ? 'questionKick' : back ? 'spinBackKick' : 'axeKick';
+  if (down) return fwd ? 'bodyKick' : back ? 'calfKick' : 'lowKick';
   if (back) return 'spinKick';
   if (near && !fwd) return 'kneeS';
   return fwd ? 'highKick' : 'teep';
@@ -178,7 +184,7 @@ const inLunge = f => f.mv && f.mv.lunge && f.mvT >= f.mv.lunge[0] && f.mvT <= f.
 function updFighter(f, o) {
   const I = f.inp, pr = k => I[k] && !f.prev[k];
   f.t++;
-  if (!I.u) f.jumpLock = false; // чтобы прыгнуть снова, отпусти вверх
+  if (!I.j) f.jumpLock = false; // прыжок — отдельной кнопкой; чтобы прыгнуть снова, отпусти её
   if (f.flash > 0) f.flash--;
   if (f.inv > 0) f.inv--;
   const D = f.def, air = f.y < GROUND;
@@ -196,21 +202,21 @@ function updFighter(f, o) {
     else if (I.b && I.d && pr('p')) startMove(f, 'shootTD');
     else if (I.b && pr('p')) startMove(f, 'counterHook');
     else if (I.b && pr('k')) startMove(f, I.d ? 'calfKick' : 'obliqueKick');
-    else if (pr('p')) startMove(f, pickMove(f, 'p', fwd, I.d, bk, near));
-    else if (pr('k')) startMove(f, pickMove(f, 'k', fwd, I.d, bk, near));
+    else if (pr('p')) startMove(f, pickMove(f, 'p', fwd, I.d, bk, near, I.u));
+    else if (pr('k')) startMove(f, pickMove(f, 'k', fwd, I.d, bk, near, I.u));
     else if (I.b) { setSt(f, 'block'); f.crouchB = !!I.d; }
-    else if (pr('u') && !f.jumpLock) {
+    else if (pr('j') && !f.jumpLock) {
       f.st = 'jump'; f.t = 0; f.vy = -4.4; f.airUsed = false; f.jumpLock = true;
       f.vx = (fwd ? 1.7 : bk ? -1.5 : 0) * f.face;
       emit({ k: 'sfx', n: 'jump' });
     }
     else if (I.d) setSt(f, 'crouch');
-    else if (fwd) { setSt(f, 'walk'); f.vx = 1.25 * D.walk * f.face; }
-    else if (bk) { setSt(f, 'walk'); f.vx = -1.0 * D.walk * f.face; }
+    else if (fwd) { setSt(f, 'walk'); f.vx = 1.25 * D.walk * limp(f) * f.face; }
+    else if (bk) { setSt(f, 'walk'); f.vx = -1.0 * D.walk * limp(f) * f.face; }
     else setSt(f, 'idle');
   } else if (f.st === 'jump') {
     // отпустил вверх сразу — короткий подскок
-    if (!I.u && f.t < 7 && f.vy < -1.5) f.vy *= 0.6;
+    if (!I.j && f.t < 7 && f.vy < -1.5) f.vy *= 0.6;
     if (!f.airUsed && (pr('p') || pr('k'))) {
       f.airUsed = true;
       const fw = fwdOf();
@@ -230,8 +236,8 @@ function updFighter(f, o) {
     else if (f.landed && m.cancel && f.mvT >= m.cancel) {
       const fwd = fwdOf(), bk = backOf();
       if (pr('s') && f.meter >= 100) startMove(f, D.special);
-      else if (pr('p')) startMove(f, pickMove(f, 'p', fwd, I.d, bk));
-      else if (pr('k')) startMove(f, pickMove(f, 'k', fwd, I.d, bk));
+      else if (pr('p')) startMove(f, pickMove(f, 'p', fwd, I.d, bk, false, I.u));
+      else if (pr('k')) startMove(f, pickMove(f, 'k', fwd, I.d, bk, false, I.u));
     }
     if (f.st === 'attack' && f.mvT >= f.mv.len) {
       f.mv = null; f.mvId = null; f.airUsed = true;
@@ -245,7 +251,7 @@ function updFighter(f, o) {
     // под ударами можно сразу бить в ответ или закрыться — никакого «замка»
     const fwd = fwdOf(), bk = backOf(), near = Math.abs(o.x - f.x) < 25 * D.scale;
     if (f.t >= 2 && !air && pr('s') && f.meter >= 100) startMove(f, D.special);
-    else if (f.t >= 2 && !air && (pr('p') || pr('k'))) startMove(f, pickMove(f, pr('p') ? 'p' : 'k', fwd, I.d, bk, near));
+    else if (f.t >= 2 && !air && (pr('p') || pr('k'))) startMove(f, pickMove(f, pr('p') ? 'p' : 'k', fwd, I.d, bk, near, I.u));
     else if (f.t >= 2 && !air && I.b) { setSt(f, 'block'); f.crouchB = !!I.d; f.stun = 0; }
     else if (--f.stun <= 0 && !air) setSt(f, 'idle');
   } else if (f.st === 'down') {
@@ -350,7 +356,7 @@ function checkHits(a, d) {
         emit({ k: 'msg', text: 'СПРОЛ!' }); emit({ k: 'sfx', n: 'block' });
         return;
       }
-      beginGrab(a, d, m.grab.kind);
+      beginGrab(a, d, m.grab.kind, m.grab);
       return;
     }
   }
@@ -418,7 +424,8 @@ function placePair(a, d, off) {
   if (a.x > MAXX) { d.x -= a.x - MAXX; a.x = MAXX; }
 }
 
-function beginGrab(a, d, kind) {
+function beginGrab(a, d, kind, gp) {
+  a.gp = gp || {};
   a.grabbed = true; a.st = 'grab'; a.t = 0; a.gkind = kind; a.gt = 0; a.mv = null; a.mvId = null; a.vx = 0;
   d.st = 'held'; d.t = 0; d.gkind = kind; d.mash = 0; d.vx = 0; d.vy = 0; d.y = GROUND; d.face = -a.face; d.mv = null; d.mvId = null;
   if (kind === 'gnp') {
@@ -439,7 +446,7 @@ function beginGrab(a, d, kind) {
 function updGrab(a, d) {
   a.gt++; d.gt = a.gt;
   if (a.gkind === 'td') {
-    if (a.gt === 1) { d.hp -= 10; d.flash = 4; emit({ k: 'sfx', n: 'heavy' }); emit({ k: 'shake', v: 6 }); emit({ k: 'dust', x: d.x }); }
+    if (a.gt === 1) { d.hp -= a.gp.dmg || 10; d.flash = 4; injure(d, 'body'); emit({ k: 'sfx', n: 'heavy' }); emit({ k: 'shake', v: 6 }); emit({ k: 'dust', x: d.x }); }
     if (d.hp <= 0) { d.hp = 0; endGrab(a, d, true); return; }
     if (a.gt >= 40) endGrab(a, d, false);
     return;
@@ -449,7 +456,7 @@ function updGrab(a, d) {
     d.x = clamp(a.x + a.face * 16 * Math.cos(th), MINX, MAXX);
     d.y = GROUND - 30 * Math.sin(th);
     if (a.gt === 26) {
-      d.y = GROUND; d.hp -= 13; d.flash = 4;
+      d.y = GROUND; d.hp -= a.gp.dmg || 13; d.flash = 4; injure(d, 'body');
       emit({ k: 'sfx', n: 'heavy' }); emit({ k: 'shake', v: 8 }); emit({ k: 'dust', x: d.x });
       if (d.hp <= 0) { d.hp = 0; endGrab(a, d, true); return; }
     }
@@ -457,9 +464,9 @@ function updGrab(a, d) {
     return;
   }
   if (a.gkind === 'gnp') {
-    const HITS = 6, START = 20, CYC = 12, k = a.gt - START;
+    const HITS = a.gp.hits || 6, START = 20, CYC = 12, k = a.gt - START;
     if (k >= 0 && k % CYC === 6 && k / CYC < HITS) {
-      d.hp -= 3.6; d.flash = 3; injure(d, 'head');
+      d.hp -= a.gp.dmg || 3.6; d.flash = 3; injure(d, 'head');
       const pt = jointWorld(a.def, POSE.gnp, a.x, a.y, a.face, 'bh');
       emit({ k: 'spark', x: pt[0], y: pt[1] });
       emit({ k: 'sfx', n: 'punch' }); emit({ k: 'shake', v: 2 });
@@ -469,7 +476,7 @@ function updGrab(a, d) {
     if (a.gt >= START + HITS * CYC + 6) endGrab(a, d, false);
   } else {
     if (a.gt > 16) {
-      d.hp -= 0.3;
+      d.hp -= a.gp.drain || 0.3;
       if (a.gt % 20 === 0) { d.flash = 3; emit({ k: 'sfx', n: 'grab' }); }
     }
     if (d.mash >= 16) {
@@ -599,18 +606,39 @@ function aiInput(me, op, ai) {
     if (r < 0.06) { I.p = 1; I.k = 1; const q = R(); if (q < 0.25) I[F] = 1; else if (q < 0.5) I.d = 1; else if (q < 0.7) I[B] = 1; return I; }
     if (r < 0.1) { I.b = 1; I[R() < 0.5 ? 'p' : 'k'] = 1; if (R() < 0.3) I.d = 1; return I; }
     if (r < 0.14 && me.def.stats.grap >= 7) { I.b = 1; I.d = 1; I.p = 1; return I; }
-    if (v < 0.32) {} else if (v < 0.55) I[F] = 1; else if (v < 0.72) I.d = 1; else if (v < 0.82) { I.d = 1; I[F] = 1; }
-    else if (v < 0.9) { I.d = 1; I[B] = 1; } else I[B] = 1;
-    I[r < 0.5 ? 'p' : 'k'] = 1;
+    const kick = r >= 0.5;
+    if (kick && R() < 0.35 + me.def.stats.reach * 0.02) { I.d = 1; I.k = 1; return I; } // лоу-кик
+    const dirs = [[], [F], ['u'], ['u', F], ['u', B], [B], ['d'], ['d', F], ['d', B]];
+    for (const k of dirs[R() * dirs.length | 0]) I[k] = 1;
+    I[kick ? 'k' : 'p'] = 1;
     return I;
   }
-  if (ai.plan === 'approach') { if (dist > reach - 6) I[F] = 1; if (R() < P.jump) { I.u = 1; I[F] = 1; } }
+  if (ai.plan === 'approach') { if (dist > reach - 6) I[F] = 1; if (R() < P.jump) { I.j = 1; I[F] = 1; } }
   else if (ai.plan === 'retreat') I[B] = 1;
   return I;
 }
 
 // ---------- Позы для отрисовки
+// живой корпус: покачивание в стойке, наклон в ходьбе, вкладывание корпуса в удар
 function getPose(f) {
+  const p = basePose(f).slice(), t = f.t;
+  const shiftUpper = (dx, dy) => { for (const i of [2, 4, 6, 8, 10]) { p[i] += dx; p[i + 1] += dy; } };
+  if (f.st === 'idle' || f.st === 'block') {
+    const sway = Math.sin(t * 0.07 + f.side * 2) * 1.4, bob = Math.sin(t * 0.14 + f.side) * 0.8;
+    shiftUpper(sway, bob * 0.6); p[1] += bob * 0.3;
+  } else if (f.st === 'walk') {
+    shiftUpper(2, Math.abs(Math.sin(t * 0.28)) * -0.8); p[1] -= Math.abs(Math.sin(t * 0.28)) * 1.1;
+  } else if (f.st === 'attack' && f.mv && f.mv.hits.length) {
+    const h = f.mv.hits[0], a = f.mvT >= h.s - 2 && f.mvT <= h.e + 5 ? 1 : 0;
+    if (f.mv.cat === 'k') shiftUpper(-2 * a, 0.5 * a);
+    else { p[2] += 2.8 * a; p[3] += 0.8 * a; for (const i of [4, 8]) p[i] += 1.2 * a; }
+  } else if (f.st === 'hit') {
+    p[2] -= 2; p[3] += 1;
+  }
+  return p;
+}
+
+function basePose(f) {
   switch (f.st) {
     case 'idle': return lerpPose(POSE.idle, POSE.idle2, (Math.sin(f.t * 0.09) + 1) / 2);
     case 'walk': return lerpPose(POSE.walk1, POSE.walk2, (Math.sin(f.t * 0.28) + 1) / 2);
@@ -638,7 +666,7 @@ function getPose(f) {
       if (f.gkind === 'gnp') {
         const k = f.gt - 20;
         if (k < 0) return lerpPose(POSE.shoot, POSE.mount, f.gt / 10);
-        if (k >= 72) return POSE.mount;
+        if (k >= (f.gp && f.gp.hits || 6) * 12) return POSE.mount;
         const c = k % 12;
         return c < 6 ? lerpPose(POSE.mount, POSE.gnpW, c / 5) : c < 9 ? POSE.gnp : POSE.mount;
       }
@@ -691,7 +719,14 @@ const TAUNT = {
   usyk: t => ({ p: lerpPose(POSE.hopak1, POSE.hopak2, wave(t, 0.35)) }),
   pimblett: t => ({ p: lerpPose(POSE.kiss1, POSE.kiss2, wave(t, 0.22)) }),
 };
-const tauntOf = f => (TAUNT[f.id] || TAUNT.poirier)(f.t);
+// фирменные номера новым бойцам — по стилю
+const TAUNT_ALIAS = { gsp: 'jones', asilva: 'adesanya', fedor: 'khabib', pereira: 'ngannou', makhachev: 'jones', volkanovski: 'poirier',
+  holloway: 'adesanya', usman: 'jones', cormier: 'ngannou', miocic: 'poirier', lesnar: 'ngannou', ndiaz: 'mcgregor', gaethje: 'tyson',
+  omalley: 'pimblett', topuria: 'mcgregor', chimaev: 'jones', aspinall: 'poirier', gane: 'adesanya', prochazka: 'tsarukyan',
+  dricus: 'jones', merab: 'usyk', edwards: 'poirier', belal: 'khabib', masvidal: 'mcgregor', velasquez: 'ngannou', jds: 'oliveira',
+  shogun: 'tsarukyan', wanderlei: 'tyson', liddell: 'ngannou', penn: 'pimblett', ali: 'adesanya', mayweather: 'mcgregor',
+  pacquiao: 'tyson', lomachenko: 'usyk', wklitschko: 'poirier', fury: 'oliveira', canelo: 'tyson', joshua: 'ngannou', ggg: 'poirier' };
+const tauntOf = f => (TAUNT[f.id] || TAUNT[TAUNT_ALIAS[f.id]] || TAUNT.poirier)(f.t);
 function poseExtra(f) {
   if (f.st === 'taunt') { const r = tauntOf(f); return { dy: r.dy || 0, rot: r.rot || 0 }; }
   if (f.st === 'attack' && f.mv && f.mv.spinAir && f.mvT >= f.mv.spinAir[0] && f.mvT < f.mv.spinAir[1])
