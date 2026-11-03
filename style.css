@@ -249,3 +249,14 @@ button:hover { filter: brightness(1.15); }
 .tb.j { left: auto; right: -4px; top: -6px; width: 56px; height: 56px; font-size: 18px; background: #2a8a4a; box-shadow: inset -4px -4px 0 #145a2a, 0 0 0 3px #000; }
 body:not(.portrait) .tb.j { width: 50px; height: 50px; }
 #pad { width: 210px !important; }
+
+/* ---------- Солидное меню: стальная панель, неоновый логотип */
+#s-menu, #s-title { background: radial-gradient(ellipse at 50% 30%, #00000000 0%, #00000055 55%, #000000cc 100%); }
+#s-menu .col { padding: 16px 14px 12px; background: linear-gradient(#2b2b33ee, #17171ce8); box-shadow: 0 0 0 3px #000, inset 0 0 0 2px #4a4a58, inset 0 3px 0 #6a6a78, 0 12px 30px #000c; position: relative; }
+#s-menu .col::before, #s-menu .col::after { content: ''; position: absolute; top: 6px; width: 6px; height: 6px; background: #8a8a96; box-shadow: 0 0 0 2px #000, 0 calc(100% - 0px) 0 0 transparent; border-radius: 50%; }
+#s-menu .col::before { left: 6px; } #s-menu .col::after { right: 6px; }
+#s-menu .col button { margin: 6px 0; }
+.logo { text-shadow: 0 0 8px #ffd23a88, 0 0 22px #ff5a2a55, 4px 4px 0 var(--red), 8px 8px 0 #000; }
+.logo span { text-shadow: 0 0 6px #ffffff66, 3px 3px 0 var(--red); }
+#s-menu .logo, #s-title .logo { animation: neon 4s steps(1) infinite, logoBob 2.4s steps(12) infinite; }
+@keyframes neon { 0%, 18%, 22%, 62%, 64%, 100% { opacity: 1; } 20%, 63% { opacity: .55; } }

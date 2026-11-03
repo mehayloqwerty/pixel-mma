@@ -864,11 +864,16 @@ const snapF = f => [Math.round(f.x * 10) / 10, Math.round(f.y * 10) / 10, f.face
   Math.round(f.meter), f.st, f.mvId || 0, Math.round(f.mvT * 10) / 10, f.t, f.gkind || 0, f.gt, f.flash, f.downDur, f.crouchB ? 1 : 0,
   [f.dmgZ.head || 0, f.dmgZ.body || 0, f.dmgZ.arm || 0, f.dmgZ.leg || 0]];
 
-function applySnapF(f, s) {
-  let mv, gk, cb, dz;
-  [f.tx, f.ty, f.face, f.hp, f.meter, f.st, mv, f.mvT, f.t, gk, f.gt, f.flash, f.downDur, cb, dz] = s;
+// состояния, которые решает только хост: по другу попали, его держат, сбили и т. п.
+const FORCED = ['hit', 'down', 'ko', 'held', 'grab', 'clinch', 'taunt', 'win'];
+function applySnapF(f, s, own) {
+  const [tx, ty, face, hp, meter, st, mv, mvT, t, gk, gt, flash, downDur, cb, dz] = s;
+  f.tx = tx; f.ty = ty; f.hp = hp; f.meter = meter; f.hostSt = st;
   if (dz) f.dmgZ = { head: dz[0], body: dz[1], arm: dz[2], leg: dz[3] };
-  if (f.x === undefined || Math.abs(f.tx - f.x) > 60) { f.x = f.tx; f.y = f.ty; }
+  // своего бойца друг ведёт сам (без задержки), пока хост не сообщит, что по нему попали
+  if (own && G.phase === 'fight' && !FORCED.includes(st) && !FORCED.includes(f.st)) return;
+  f.face = face; f.st = st; f.mvT = mvT; f.t = t; f.gt = gt; f.flash = flash; f.downDur = downDur;
+  if (f.x === undefined || Math.abs(tx - f.x) > 60) { f.x = tx; f.y = ty; }
   f.mvId = mv || null; f.mv = mv ? MOVES[mv] : null; f.gkind = gk || null; f.crouchB = !!cb;
 }
 
@@ -889,7 +894,7 @@ function onNetData(d) {
     if (d.c && b.st === 'held') b.mash += d.c;
   }
   else if (d.t === 's' && G && G.mode === 'guest') {
-    applySnapF(G.f[0], d.a); applySnapF(G.f[1], d.b);
+    applySnapF(G.f[0], d.a); applySnapF(G.f[1], d.b, true);
     G.timer = d.tm; G.round = d.rd; G.wins = d.w; G.phase = d.ph; G.phaseT = d.pt; G.clinch = d.cl ? { n: [d.cl[0], d.cl[1]], t: d.cl[2] } : null;
     d.fx.forEach(applyFx);
   } else UI.onNet(d);
@@ -910,16 +915,30 @@ function tick() {
   if (online && Net.lastRx && performance.now() - Net.lastRx > 12000) { UI.netLost(); return; }
   Net.tick = (Net.tick || 0) + 1;
   if (G.mode === 'guest') {
-    // копим нажатия и шлём пачкой раз в 7 кадров: сервер пропускает ~10 сообщений в секунду
-    const I = Input.read(), v = encIn(I);
+    // нажатия шлём сразу, как только позволяет лимит сервера (~10 в секунду), а напрямую — без ограничений
+    const I = Input.read(), v = encIn(I), now = performance.now();
     const edges = v & ~(Net.lastIn || 0);
     Net.latch = (Net.latch || 0) | v;
     Net.count = (Net.count || 0) + ((edges & 0xF0) ? 1 : 0);
     Net.lastIn = v;
-    if (Net.tick % netEvery() === 0) { netSend({ t: 'i', v, l: Net.latch, c: Net.count }); Net.latch = 0; Net.count = 0; }
+    const fast = Net.p2p && Net.p2p.open, gap = fast ? 0 : 105, since = now - (Net.lastSendT || 0);
+    if ((since >= gap && (v !== Net.lastSent || (Net.latch & 0x1F0))) || since >= (fast ? 50 : 160)) {
+      netSend({ t: 'i', v, l: Net.latch, c: Net.count });
+      Net.latch = 0; Net.count = 0; Net.lastSendT = now; Net.lastSent = v;
+    }
     bleed();
-    // между пакетами двигаем бойцов сами — без рывков
+    const me = G.f[1], op = G.f[0];
+    // свой боец — сразу по нажатию, как в одиночной игре
+    const predict = G.phase === 'fight' && !FORCED.includes(me.hostSt) && !FORCED.includes(me.st);
+    if (predict) {
+      me.inp = I; updFighter(me, op); me.prev = I;
+      if (me.tx !== undefined) {
+        if (Math.abs(me.tx - me.x) > 40) me.x = me.tx; else me.x += (me.tx - me.x) * 0.08;
+      }
+    } else me.prev = I;
+    // соперника и себя в «чужих» состояниях двигаем между пакетами — без рывков
     for (const f of G.f) {
+      if (f === me && predict) continue;
       f.t++;
       if (f.st === 'attack' && f.mv) f.mvT += f.def.spd;
       if (f.tx !== undefined) { f.x += (f.tx - f.x) * 0.3; f.y += (f.ty - f.y) * 0.3; }
@@ -946,7 +965,8 @@ function render(now) {
   c.save();
   c.setTransform(RS, 0, 0, RS, sx, sy);
   const si = G ? G.stage : menuStage;
-  drawStageBack(c, si, now);
+  const menu = !G || G.mode === 'demo';
+  if (menu) drawMenuScene(c, now); else drawStageBack(c, si, now);
   if (G && G.stains) for (const st of G.stains) { c.fillStyle = st.c; c.fillRect(st.x, st.y, st.w, 1); }
   if (G) {
     for (const f of G.f) {
@@ -983,7 +1003,7 @@ function render(now) {
       } else c.fillRect(Math.round(p.x), Math.round(p.y), p.l > 8 ? 2 : 1, p.l > 8 ? 2 : 1);
     }
   }
-  drawStageFront(c, si, now);
+  if (menu) drawMenuShade(c, now); else drawStageFront(c, si, now);
   c.restore();
   if (G && G.mode !== 'demo') UI.hud(G);
 }
@@ -1003,4 +1023,5 @@ function startDemo() {
   if (b === a) b = ids[(ids.indexOf(a) + 3) % ids.length];
   menuStage = 0;
   newMatch({ mode: 'demo', p1: a, p2: b, stage: menuStage, diff: 1 });
+  G.f[0].x = 132; G.f[1].x = 188;
 }

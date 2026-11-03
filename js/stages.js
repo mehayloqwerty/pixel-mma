@@ -302,3 +302,81 @@ function drawStageFront(c, i, t) {
   const S = STAGES[i];
   if (S.front) S.front(c, t, stageLayers(i).st);
 }
+
+// ---------- Меню: подвальный зал — кирпичная стена, лампочка на проводе, луч света и пыль
+let menuWall = null;
+function buildMenuWall() {
+  const cv = document.createElement('canvas'); cv.width = SW; cv.height = SH;
+  const c = cv.getContext('2d'), r = rng(41);
+  rect(c, 0, 0, SW, SH, '#1a0d0b');
+  const bricks = ['#5a2a22', '#50241e', '#62302a', '#48201b', '#57291f', '#6a3428'];
+  for (let y = 0, row = 0; y < 158; y += 8, row++) {
+    for (let x = (row & 1) ? -8 : 0; x < SW; x += 16) {
+      const col = bricks[r() * bricks.length | 0];
+      rect(c, x + 1, y + 1, 14, 6, col);
+      rect(c, x + 1, y + 1, 14, 1, shade(col, 1.18));
+      rect(c, x + 1, y + 6, 14, 1, shade(col, 0.75));
+      if (r() < 0.12) rect(c, x + 3 + (r() * 9 | 0), y + 2 + (r() * 3 | 0), 2 + (r() * 3 | 0), 1, shade(col, 0.6)); // скол
+    }
+  }
+  // трещины и потёки сырости
+  c.fillStyle = 'rgba(10,5,4,0.55)';
+  for (let i = 0; i < 5; i++) { let x = r() * SW | 0, y = r() * 60 | 0; for (let k = 0; k < 30; k++) { c.fillRect(x, y, 1, 1); x += (r() * 3 | 0) - 1; y += 1; } }
+  for (let i = 0; i < 9; i++) { const x = r() * SW | 0, h = 20 + r() * 60 | 0; c.fillStyle = 'rgba(20,30,20,0.18)'; c.fillRect(x, 0, 2 + (r() * 3 | 0), h); }
+  // выцветший плакат
+  rect(c, 236, 46, 40, 54, '#2a2018'); rect(c, 238, 48, 36, 50, '#b8a172'); rect(c, 242, 52, 28, 22, '#7a1a1a');
+  ptext(c, 'FIGHT', 245, 78, '#2a1a10'); ptext(c, 'NIGHT', 245, 86, '#2a1a10');
+  rect(c, 270, 48, 4, 10, 'rgba(26,13,11,0.8)');
+  // труба
+  rect(c, 0, 10, SW, 4, '#2c2c30'); rect(c, 0, 10, SW, 1, '#4a4a52');
+  for (let x = 30; x < SW; x += 80) rect(c, x, 8, 3, 8, '#1c1c20');
+  // бетонный пол
+  ditherBands(c, 158, 180, ['#2a2622', '#201d1a', '#141210']);
+  rect(c, 0, 157, SW, 1, '#0c0a09');
+  for (let i = 0; i < 14; i++) rect(c, r() * SW | 0, 162 + r() * 16 | 0, 3 + (r() * 8 | 0), 1, 'rgba(0,0,0,0.35)');
+  return cv;
+}
+const motes = Array.from({ length: 40 }, (_, i) => ({ x: (i * 73) % 140 - 70, y: (i * 41) % 130, s: 0.004 + (i % 5) * 0.002, p: i }));
+let flick = 0;
+function lampPos(t) {
+  const a = Math.sin(t * 0.0011) * 0.1;
+  return { x: 160 + Math.sin(a) * 44, y: 14 + Math.cos(a) * 30, a };
+}
+function drawMenuScene(c, t) {
+  if (!menuWall) menuWall = buildMenuWall();
+  c.drawImage(menuWall, 0, 0);
+  const L = lampPos(t);
+  if (flick > 0) flick--; else if (Math.random() < 0.006) flick = 4 + (Math.random() * 10 | 0);
+  const on = !(flick > 0 && flick & 2);
+  // провод и патрон
+  seg(c, 160, 0, L.x, L.y - 4, 1, '#111');
+  rect(c, Math.round(L.x) - 2, Math.round(L.y) - 5, 5, 4, '#2a2a2a');
+  // лампочка
+  c.fillStyle = on ? '#fff6c8' : '#6a6450'; c.beginPath(); c.arc(L.x + 0.5, L.y + 1, 2.6, 0, 6.28); c.fill();
+  if (on) {
+    const g = c.createRadialGradient(L.x, L.y, 1, L.x, L.y, 26);
+    g.addColorStop(0, 'rgba(255,240,180,0.55)'); g.addColorStop(1, 'rgba(255,240,180,0)');
+    c.fillStyle = g; c.fillRect(L.x - 26, L.y - 26, 52, 52);
+    // конус света
+    const cg = c.createLinearGradient(0, L.y, 0, 170);
+    cg.addColorStop(0, 'rgba(255,236,170,0.22)'); cg.addColorStop(1, 'rgba(255,236,170,0.04)');
+    c.fillStyle = cg;
+    c.beginPath(); c.moveTo(L.x - 3, L.y + 2); c.lineTo(L.x + 3, L.y + 2); c.lineTo(L.x + 95 + L.a * 200, 170); c.lineTo(L.x - 95 + L.a * 200, 170); c.fill();
+    // пятно света на полу
+    c.fillStyle = 'rgba(255,230,160,0.10)'; c.beginPath(); c.ellipse(L.x + L.a * 200, 166, 90, 8, 0, 0, 6.28); c.fill();
+    // пыль в луче
+    for (const m of motes) {
+      const y = (m.y + t * m.s) % 140 + 30, spread = (y - L.y) / 140 * 90;
+      const x = L.x + L.a * 200 * (y - L.y) / 150 + (m.x / 70) * spread + Math.sin(t * 0.001 + m.p) * 3;
+      c.fillStyle = 'rgba(255,240,200,0.55)'; c.fillRect(x | 0, y | 0, 1, 1);
+    }
+  }
+  return { L, on };
+}
+// темнота по краям — свет только под лампой
+function drawMenuShade(c, t) {
+  const L = lampPos(t), on = !(flick > 0 && flick & 2);
+  const g = c.createRadialGradient(L.x + L.a * 100, 110, 30, L.x + L.a * 100, 110, 230);
+  g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(0.55, on ? 'rgba(0,0,0,0.35)' : 'rgba(0,0,0,0.55)'); g.addColorStop(1, 'rgba(0,0,0,0.88)');
+  c.fillStyle = g; c.fillRect(0, 0, SW, SH);
+}

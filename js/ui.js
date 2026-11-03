@@ -26,7 +26,7 @@ const Input = (() => {
     const nx = len ? dx / len : 0, ny = len ? dy / len : 0;
     knob.style.transform = `translate(${nx * m}px, ${ny * m}px)`;
     touch.l = touch.r = touch.u = touch.d = 0;
-    if (len < r * 0.28) { stick.dataset.dir = ''; return; }
+    if (!len || !r || len < r * 0.28) { stick.dataset.dir = ''; return; }
     const sec = Math.round(Math.atan2(dy, dx) / (Math.PI / 4));
     const DIR = { 0: 'r', 1: 'rd', 2: 'd', 3: 'ld', 4: 'l', '-4': 'l', '-3': 'lu', '-2': 'u', '-1': 'ru' }[sec] || '';
     for (const ch of DIR) touch[ch] = 1;

@@ -321,7 +321,7 @@ const Sound = (() => {
   // ---- Настоящие треки: Kevin MacLeod (incompetech.com), CC BY 4.0. Чиптюн — запасной вариант без сети.
   // menu — Kevin MacLeod (incompetech.com, CC BY 4.0); остальное — Pixabay Content License
   const TRACKS = {
-    menu: ['Volatile Reaction', 'Kevin MacLeod'],
+    menu: ['Deep Dubstep (Meditation)', 'GiorgioVitté'],
     khabib: ['Epic Orchestral Drums', 'Playsound'], oliveira: ['Brazilian Phonk', 'MondaMusic'],
     jones: ['Aggressive Trap Beat', 'vaitsez'], tyson: ['Beat de Boom Bap Callejero', 'flakitogilbeatz'],
     tsarukyan: ['Middle Eastern Music', '331music'], mcgregor: ['Celtic Bagpipe Rock', 'vjgalaxy'],

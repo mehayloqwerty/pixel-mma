@@ -1,7 +1,7 @@
 # Музыка
 
 ## Меню
-menu.m4a — "Volatile Reaction" — Kevin MacLeod (incompetech.com). Licensed under Creative Commons: By Attribution 4.0 — http://creativecommons.org/licenses/by/4.0/
+menu.m4a — "Deep Dubstep (Meditation)" — GiorgioVitté, Pixabay: https://pixabay.com/music/dubstep-deep-dubstep-meditation-472104/ (Pixabay Content License)
 
 ## Pixabay (Pixabay Content License, https://pixabay.com/service/license-summary/)
 | Файл | Трек | Автор | Страница |
