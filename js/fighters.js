@@ -427,6 +427,19 @@ function keyPose(keys, t) {
   return POSE[keys[keys.length - 1][1]];
 }
 
+// ---- Телосложение: lean — сухой, muscle — накачанный, stocky — плотный, heavy — с животом
+const BODY = {
+  lean: ['adesanya', 'omalley', 'asilva', 'ndiaz', 'lomachenko', 'oliveira', 'mcgregor', 'jones', 'usyk', 'gane', 'pereira', 'prochazka',
+         'holloway', 'edwards', 'pacquiao', 'mayweather', 'ali'],
+  muscle: ['tyson', 'lesnar', 'ngannou', 'joshua', 'chimaev', 'tsarukyan', 'topuria', 'gsp', 'usman', 'dricus', 'gaethje', 'masvidal',
+           'wklitschko', 'aspinall'],
+  stocky: ['khabib', 'makhachev', 'poirier', 'canelo', 'ggg', 'volkanovski', 'merab', 'belal', 'miocic', 'jds', 'shogun', 'wanderlei',
+           'velasquez', 'pimblett'],
+  heavy: ['fury', 'fedor', 'cormier', 'liddell', 'penn'],
+};
+const BODY_OF = {};
+for (const [t, ids] of Object.entries(BODY)) for (const id of ids) BODY_OF[id] = t;
+
 // ---- Пиксельная отрисовка
 const OUTLINE = '#14090a';
 
@@ -536,8 +549,10 @@ function drawFighter(ctx, def, pose, X, Y, face, o = {}) {
   const up = [tv[0] / tl, tv[1] / tl];
   const fwd = [-up[1], up[0]];
   const sh = [J.neck[0] - up[0] * 2 * s, J.neck[1] - up[1] * 2 * s];
-  const armW = Math.max(3, Math.round(4 * b * s)), legW = Math.max(4, Math.round(5 * b * s));
-  const torW = Math.round(10 * b * s), R = Math.round(5 * s);
+  const BT = BODY_OF[def.id] || 'normal';
+  const armAdd = { lean: -1, muscle: 1, heavy: 1, stocky: 0.5 }[BT] || 0, legAdd = { lean: -0.5, heavy: 1, stocky: 0.5 }[BT] || 0;
+  const armW = Math.max(3, Math.round(4 * b * s + armAdd * s)), legW = Math.max(4, Math.round(5 * b * s + legAdd * s));
+  const torW = Math.round(10 * b * s * ({ lean: 0.88, muscle: 1.06, heavy: 1.12, stocky: 1.04 }[BT] || 1)), R = Math.round(5 * s);
   const mid = (a, c, t) => [a[0] + (c[0] - a[0]) * t, a[1] + (c[1] - a[1]) * t];
 
   // кисть, сужающаяся от w0 к w1
@@ -617,7 +632,9 @@ function drawFighter(ctx, def, pose, X, Y, face, o = {}) {
       seg(ctx, cx - fwd[0] * hw, cy - fwd[1] * hw, cx + fwd[0] * hw, cy + fwd[1] * hw, 2, col);
     }
   };
-  const torsoW = k => torW * (0.82 + 0.3 * Math.min(1, Math.max(0, k / tLen)));
+  // форма торса: накачанный — сильный «треугольник», с животом — талия шире груди
+  const TAPER = { lean: [0.84, 0.22], muscle: [0.74, 0.46], heavy: [1.06, -0.02], stocky: [0.94, 0.14] }[BT] || [0.82, 0.3];
+  const torsoW = k => torW * (TAPER[0] + TAPER[1] * Math.min(1, Math.max(0, k / tLen)));
   band(-2, tLen + 2, k => torsoW(k) + 2, C(OUTLINE));
   band(-1, tLen + 1, torsoW, C(suit ? L.suit : L.skin));
   const hl = torW / 4;
@@ -636,10 +653,32 @@ function drawFighter(ctx, def, pose, X, Y, face, o = {}) {
   if (!suit) {
   const dk = C(shade(L.skin, 0.78));
   const pw = torsoW(tLen * 0.68) / 2;
-  tseg(at(tLen * 0.66, pw * 0.05), at(tLen * 0.66, pw * 0.85), 1, 1, dk);
-  dot(at(tLen * 0.74, pw * 0.45), C(shade(L.skin, 0.62)));
-  for (const k of [0.3, 0.42, 0.54]) { dot(at(tLen * k, pw * 0.25), dk); dot(at(tLen * k, pw * 0.6), dk); }
-  tseg(at(tLen * 0.3, pw * 0.42), at(tLen * 0.58, pw * 0.42), 1, 1, dk);
+  if (BT === 'heavy') {
+    // живот вперёд: выпирает дугой, без кубиков, пупок и складка
+    const bl = tLen * 0.62;
+    for (const [col, add] of [[C(OUTLINE), 1], [C(L.skin), 0]]) {
+      for (let k = -1; k <= bl; k += 0.7) {
+        const ex = Math.sin(Math.PI * Math.max(0, k + 1) / (bl + 1)) * 3.2 * s;
+        const w0 = torsoW(k) / 2 - 1, p0 = at(k, w0), p1 = at(k, w0 + ex + add);
+        seg(ctx, p0[0], p0[1], p1[0], p1[1], 2, col);
+      }
+    }
+    const bm = at(bl * 0.5, torsoW(bl * 0.5) / 2 + 1.2 * s);
+    dot(bm, C(shade(L.skin, 1.15)), 2, 2);
+    dot(at(bl * 0.35, torsoW(bl * 0.35) / 2 + 1.0 * s), C(shade(L.skin, 0.6)));
+    tseg(at(tLen * 0.08, pw * 0.1), at(tLen * 0.08, pw * 1.1), 1, 1, dk);
+    tseg(at(tLen * 0.68, pw * 0.1), at(tLen * 0.7, pw * 0.8), 1, 1, dk);
+  } else {
+    tseg(at(tLen * 0.66, pw * 0.05), at(tLen * 0.66, pw * 0.85), 1, 1, dk);
+    if (BT === 'muscle') {
+      tseg(at(tLen * 0.68, pw * 0.05), at(tLen * 0.68, pw * 0.9), 1, 1, dk);
+      tseg(at(tLen * 0.98, -pw * 0.5), at(tLen + 1.5, pw * 0.1), 2, 2, C(shade(L.skin, 1.12))); // трапеции
+      dot(at(tLen * 0.8, pw * 0.5), C(shade(L.skin, 1.2)), 2, 1);
+    }
+    for (const k of [0.3, 0.42, 0.54]) { dot(at(tLen * k, pw * 0.25), dk); dot(at(tLen * k, pw * 0.6), dk); }
+    tseg(at(tLen * 0.3, pw * 0.42), at(tLen * 0.58, pw * 0.42), 1, 1, dk);
+    if (BT === 'lean') for (const k of [0.5, 0.6, 0.7]) tseg(at(tLen * k, -pw * 0.7), at(tLen * k - 1, -pw * 0.2), 1, 1, dk); // рёбра
+  }
   dot(at(tLen * 0.9, -pw * 0.2), C(shade(L.skin, 1.18)), 2, 1);
   if (L.tattoo === 'chest') {
     ctx.fillStyle = C('#2c4a3a');
