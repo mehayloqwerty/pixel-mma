@@ -192,7 +192,12 @@ function updFighter(f, o) {
   } else if (f.st === 'land') {
     if (f.t >= 9) setSt(f, 'idle');
   } else if (f.st === 'hit') {
-    if (--f.stun <= 0 && !air) setSt(f, 'idle');
+    // под ударами можно сразу бить в ответ или закрыться — никакого «замка»
+    const fwd = fwdOf(), bk = backOf(), near = Math.abs(o.x - f.x) < 25 * D.scale;
+    if (f.t >= 2 && !air && pr('s') && f.meter >= 100) startMove(f, D.special);
+    else if (f.t >= 2 && !air && (pr('p') || pr('k'))) startMove(f, pickMove(f, pr('p') ? 'p' : 'k', fwd, I.d, bk, near));
+    else if (f.t >= 2 && !air && I.b) { setSt(f, 'block'); f.crouchB = !!I.d; f.stun = 0; }
+    else if (--f.stun <= 0 && !air) setSt(f, 'idle');
   } else if (f.st === 'down') {
     if (f.t >= f.downDur) { setSt(f, 'idle'); f.inv = 30; }
   } else if (f.st === 'grab') {
@@ -493,7 +498,9 @@ function aiInput(me, op, ai) {
   const R = Math.random;
   if (me.st === 'held') { if (R() < P.react * 0.35) I[R() < 0.5 ? 'p' : 'k'] = 1; return I; }
   if (me.st === 'clinch') { if (R() < CLINCH_MASH[ai.diff]) I[R() < 0.5 ? 'p' : 'k'] = 1; return I; }
-  if (['down', 'ko', 'hit', 'grab', 'win'].includes(me.st)) return I;
+  if (['down', 'ko', 'grab', 'win'].includes(me.st)) return I;
+  // бот тоже отвечает из-под ударов: чем выше уровень, тем чаще
+  if (me.st === 'hit') { if (dist < 44 && R() < P.react * 0.08) { I[R() < 0.6 ? 'p' : 'k'] = 1; if (R() < 0.3) I[F] = 1; } else if (R() < P.blk * 0.05) I.b = 1; return I; }
   if (op.st === 'attack' && op.atkSeq !== ai.lastSeq) {
     ai.lastSeq = op.atkSeq;
     if (dist < 64 && R() < P.blk && !op.mv.grab) ai.blockT = 16 + R() * 14 | 0;

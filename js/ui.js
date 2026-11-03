@@ -78,8 +78,15 @@ const Flow = { mode: 'bot', p1: 'khabib', p2: 'mcgregor', stage: 0, diff: 1, roo
 try { const s = JSON.parse(localStorage.getItem('pml_flow') || '{}'); Object.assign(Flow, s, { room: null }); } catch (e) {}
 const saveFlow = () => { try { localStorage.setItem('pml_flow', JSON.stringify({ p1: Flow.p1, p2: Flow.p2, stage: Flow.stage, diff: Flow.diff })); } catch (e) {} };
 
+// смена экрана: пиксельная шторка и вылет элементов по очереди
+let curScreen = null;
+function replay(el, cls) { el.classList.remove(cls); void el.offsetWidth; el.classList.add(cls); }
 function show(id) {
+  const changed = curScreen !== id;
   document.querySelectorAll('.screen').forEach(s => s.classList.toggle('hidden', s.id !== id));
+  if (changed && curScreen) replay($('wipe'), 'go');
+  if (changed) { const el = $(id); el && replay(el, 'enter'); }
+  curScreen = id;
   if (id === 's-menu') Sound.music('menu');
 }
 
@@ -101,7 +108,7 @@ function toggleFS() {
   else if (canFS) { wantFS = true; goFullscreen(true); }
   else { UI.togglePause(true); show('s-ios'); }
 }
-function hideScreens() { document.querySelectorAll('.screen').forEach(s => s.classList.add('hidden')); }
+function hideScreens() { document.querySelectorAll('.screen').forEach(s => s.classList.add('hidden')); curScreen = null; }
 
 function toMenu() {
   cleanupNet();
@@ -158,7 +165,11 @@ const visibleCards = () => [...document.querySelectorAll('#grid .card')].filter(
 function showDiv(div, keep) {
   curDiv = div;
   document.querySelectorAll('#divs .tab').forEach(t => t.classList.toggle('sel', t.dataset.div === div));
-  document.querySelectorAll('#grid .card').forEach(c => c.classList.toggle('hidden', c.dataset.div !== div));
+  document.querySelectorAll('#grid .card').forEach(c => {
+    const on = c.dataset.div === div;
+    c.classList.toggle('hidden', !on);
+    if (on && !keep) replay(c, 'pop');
+  });
   const act = document.querySelector('#divs .tab.sel');
   if (act) act.scrollIntoView({ block: 'nearest', inline: 'center' });
   if (!keep) pickCard(+visibleCards()[0].dataset.i);
@@ -270,6 +281,7 @@ function startFight(o) {
   paused = false;
   hideScreens();
   document.body.classList.add('fighting');
+  replay($('flash'), 'go'); replay($('stage'), 'slam');
   $('hud').classList.remove('hidden');
   $('touch').classList.toggle('hidden', !isTouch());
   newMatch(o);
