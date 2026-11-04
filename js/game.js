@@ -114,8 +114,9 @@ function injure(d, zone) {
   d.dmgZ[zone] = (d.dmgZ[zone] || 0) + 1;
   const n = d.dmgZ[zone];
   if (zone === 'leg' && n === 6) emit({ k: 'msg', text: 'ХРОМАЕТ!' });
+  if (zone === 'head' && n === 10) emit({ k: 'msg', text: 'СЛОМАН НОС!' });
   if (n === 7) emit({ k: 'msg', text: zone === 'head' ? 'РАССЕЧЕНИЕ!' : 'КРОВЬ!' });
-  if (n === 15) emit({ k: 'msg', text: zone === 'head' ? 'ГЛАЗ ЗАПЛЫЛ!' : 'ПЕРЕЛОМ!' });
+  if (n === 15) emit({ k: 'msg', text: { head: 'ГЛАЗ ЗАПЛЫЛ!', leg: 'ПЕРЕЛОМ НОГИ!', arm: 'ПЕРЕЛОМ РУКИ!', body: 'СЛОМАНЫ РЁБРА!' }[zone] });
 }
 const BLEED_AT = 7;
 function bleed() {
@@ -371,10 +372,13 @@ function checkHits(a, d) {
 
 function applyHit(a, d, h, m, pt, zone = 'body') {
   const mul = m.cat === 'p' ? a.def.pMul : m.cat === 'k' ? a.def.kMul : 1;
-  let dmg = h.dmg * mul * ZONE[zone] * (a.dmgMul || 1);
+  const broke = m.cat === 'p' ? (a.dmgZ.arm >= 15 ? 0.7 : 1) : m.cat === 'k' ? (a.dmgZ.leg >= 15 ? 0.6 : 1) : 1;
+  let dmg = h.dmg * mul * ZONE[zone] * (a.dmgMul || 1) * broke;
   if (zone === 'arm') h = { ...h, stun: Math.round(h.stun * 0.6), kd: false };
   const facing = d.face === Math.sign(a.x - d.x);
-  if (d.st === 'block' && facing && d.t <= 6) {
+  const botSide = G.mode === 'demo' || (G.mode === 'bot' && d.side === 1);
+  const parryOK = !botSide || Math.random() < (PARRY_BOT[G.diff] || 0);
+  if (d.st === 'block' && facing && d.t <= 6 && parryOK) {
     a.mv = null; a.mvId = null; a.st = 'hit'; a.t = 0; a.stun = 30; a.vx = -a.face * 1.5;
     d.meter = Math.min(100, d.meter + 12);
     emit({ k: 'spark', x: pt[0], y: pt[1], blk: 1, big: 1 });
@@ -555,11 +559,12 @@ const AIP = [
   { blk: 0.18, agg: 0.025, react: 0.3, jump: 0.003, sp: 0.3, combo: 0.1 },
   { blk: 0.42, agg: 0.05, react: 0.6, jump: 0.004, sp: 0.6, combo: 0.35 },
   { blk: 0.68, agg: 0.085, react: 0.85, jump: 0.005, sp: 0.9, combo: 0.7 },
-  { blk: 0.78, agg: 0.11, react: 0.9, jump: 0.005, sp: 0.95, combo: 0.82 },                          // сложный
-  { blk: 0.86, agg: 0.13, react: 0.95, jump: 0.005, sp: 1, combo: 0.92 },                            // ультра
-  { blk: 0.9, agg: 0.15, react: 1, jump: 0.006, sp: 1, combo: 1, buff: { hp: 1.25, dmg: 1.1 } },      // хардкор
-  { blk: 0.94, agg: 0.18, react: 1, jump: 0.006, sp: 1, combo: 1, buff: { hp: 1.5, dmg: 1.25 } },     // безумный
+  { blk: 0.55, agg: 0.1, react: 0.88, jump: 0.005, sp: 0.95, combo: 0.75 },                          // сложный
+  { blk: 0.6, agg: 0.115, react: 0.92, jump: 0.005, sp: 1, combo: 0.85 },                             // ультра
+  { blk: 0.6, agg: 0.12, react: 0.94, jump: 0.006, sp: 1, combo: 0.88, buff: { hp: 1.05, dmg: 1.0 } }, // хардкор
+  { blk: 0.62, agg: 0.13, react: 0.97, jump: 0.006, sp: 1, combo: 0.95, buff: { hp: 1.1, dmg: 1.05 } }, // безумный
 ];
+const PARRY_BOT = [0, 0, 0.03, 0.06, 0.08, 0.11, 0.14];
 const CLINCH_MASH = [0.16, 0.26, 0.38, 0.45, 0.52, 0.58, 0.66];
 function makeAI(diff) { return { diff, plan: 'approach', planT: 0, blockT: 0, lastSeq: -1 }; }
 
@@ -623,11 +628,22 @@ function aiInput(me, op, ai) {
 function getPose(f) {
   const p = basePose(f).slice(), t = f.t;
   const shiftUpper = (dx, dy) => { for (const i of [2, 4, 6, 8, 10]) { p[i] += dx; p[i + 1] += dy; } };
+  if ((f.st === 'idle' || f.st === 'block') && f.dmgZ && f.dmgZ.leg >= 15) {
+    // перелом ноги: вес на задней ноге, передняя почти не опирается
+    p[0] -= 2; p[1] += 2; shiftUpper(-2, 2); p[12] = 7; p[13] = -13; p[14] = 9; p[15] = -1;
+  }
   if (f.st === 'idle' || f.st === 'block') {
     const sway = Math.sin(t * 0.07 + f.side * 2) * 1.4, bob = Math.sin(t * 0.14 + f.side) * 0.8;
     shiftUpper(sway, bob * 0.6); p[1] += bob * 0.3;
   } else if (f.st === 'walk') {
     shiftUpper(2, Math.abs(Math.sin(t * 0.28)) * -0.8); p[1] -= Math.abs(Math.sin(t * 0.28)) * 1.1;
+    const lg = f.dmgZ ? f.dmgZ.leg || 0 : 0;
+    if (lg >= 6) {
+      // ступил на больную ногу — проваливается и тянет её
+      const k = Math.min(1, (lg - 5) / 10), ph = Math.max(0, Math.sin(t * 0.28));
+      p[1] += ph * 3 * k; shiftUpper(-1 * k, ph * 3 * k);
+      p[12] = p[12] * (1 - 0.5 * k) + 6 * k; p[13] = -12; p[14] = p[14] * (1 - 0.6 * k) + 8 * k; p[15] = 0;
+    }
   } else if (f.st === 'attack' && f.mv && f.mv.hits.length) {
     const h = f.mv.hits[0], a = f.mvT >= h.s - 2 && f.mvT <= h.e + 5 ? 1 : 0;
     if (f.mv.cat === 'k') shiftUpper(-2 * a, 0.5 * a);
@@ -725,7 +741,7 @@ const TAUNT_ALIAS = { gsp: 'jones', asilva: 'adesanya', fedor: 'khabib', pereira
   omalley: 'pimblett', topuria: 'mcgregor', chimaev: 'jones', aspinall: 'poirier', gane: 'adesanya', prochazka: 'tsarukyan',
   dricus: 'jones', merab: 'usyk', edwards: 'poirier', belal: 'khabib', masvidal: 'mcgregor', velasquez: 'ngannou', jds: 'oliveira',
   shogun: 'tsarukyan', wanderlei: 'tyson', liddell: 'ngannou', penn: 'pimblett', ali: 'adesanya', mayweather: 'mcgregor',
-  pacquiao: 'tyson', lomachenko: 'usyk', wklitschko: 'poirier', fury: 'oliveira', canelo: 'tyson', joshua: 'ngannou', ggg: 'poirier' };
+  pacquiao: 'tyson', lomachenko: 'usyk', wklitschko: 'poirier', fury: 'oliveira', canelo: 'tyson', joshua: 'ngannou', ggg: 'poirier', kai: 'mcgregor' };
 const tauntOf = f => (TAUNT[f.id] || TAUNT[TAUNT_ALIAS[f.id]] || TAUNT.poirier)(f.t);
 function poseExtra(f) {
   if (f.st === 'taunt') { const r = tauntOf(f); return { dy: r.dy || 0, rot: r.rot || 0 }; }

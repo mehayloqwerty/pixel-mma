@@ -323,6 +323,7 @@ const Sound = (() => {
   const TRACKS = {
     menu: ['Deep Dubstep (Meditation)', 'GiorgioVitté'],
     career: ['No Copyright Music', 'Sub_Clair'],
+    kai: ['Moody Alternative Rock Atmosphere', 'Black_Kumizhi'],
     khabib: ['Epic Orchestral Drums', 'Playsound'], oliveira: ['Brazilian Phonk', 'MondaMusic'],
     jones: ['Aggressive Trap Beat', 'vaitsez'], tyson: ['Beat de Boom Bap Callejero', 'flakitogilbeatz'],
     tsarukyan: ['Middle Eastern Music', '331music'], mcgregor: ['Celtic Bagpipe Rock', 'vjgalaxy'],

@@ -14,7 +14,7 @@
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><text y='14' font-size='14'>🥊</text></svg>">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=1793729923">
+<link rel="stylesheet" href="style.css?v=1793808356">
 </head>
 <body>
 <div id="stage">
@@ -72,17 +72,24 @@
 </div>
 
 <div class="screen hidden" id="s-menu">
-  <h1 class="logo small">PIXEL<br>MMA<span>ЛИГА БОЙЦОВ</span></h1>
-  <p id="profileLine" class="profile"></p>
-  <div class="col">
-    <button id="mCareer" class="hot">🏆 ПУТЬ К ПОЯСУ</button>
-    <button id="mBot">⚔ БОЙ С БОТОМ</button>
-    <button id="mTrain">🥋 ТРЕНИРОВКА</button>
-    <button id="mOnline">🔗 БОЙ С ДРУГОМ</button>
-    <button id="mProfile">👤 ПРОФИЛЬ И НИК</button>
-    <button id="mHelp">🎮 КАК ИГРАТЬ</button>
-    <button id="mFs">⛶ ВО ВЕСЬ ЭКРАН</button>
-    <button class="music">♪ МУЗЫКА: ВКЛ</button>
+  <div class="menuTop">
+    <h1 class="logo small">PIXEL<br>MMA<span>ЛИГА БОЙЦОВ</span></h1>
+    <p id="profileLine" class="profile"></p>
+  </div>
+  <div class="menuGrid">
+    <div class="tiles">
+      <button id="mCareer" class="tile gold"><i>🏆</i><b>ПУТЬ К ПОЯСУ</b><small>5 боёв — забери пояс</small></button>
+      <button id="mBot" class="tile red"><i>⚔</i><b>БОЙ С БОТОМ</b><small>7 уровней сложности</small></button>
+      <button id="mOnline" class="tile blue"><i>🔗</i><b>БОЙ С ДРУГОМ</b><small>по ссылке</small></button>
+      <button id="mTrain" class="tile green"><i>🥋</i><b>ТРЕНИРОВКА</b><small>груша и все приёмы</small></button>
+    </div>
+    <div class="mside">
+      <button id="mFriends">👥 ДРУЗЬЯ</button>
+      <button id="mProfile">👤 ПРОФИЛЬ</button>
+      <button id="mHelp">🎮 КАК ИГРАТЬ</button>
+      <button id="mFs">⛶ ЭКРАН</button>
+      <button class="music">♪ МУЗЫКА: ВКЛ</button>
+    </div>
   </div>
 </div>
 
@@ -155,6 +162,23 @@
     <button id="pMenu">ВЫЙТИ В МЕНЮ</button>
   </div>
 </div>
+
+<div class="screen hidden" id="s-friends">
+  <h2>ДРУЗЬЯ</h2>
+  <p id="frStatus" class="tiny"></p>
+  <div class="frAdd"><input id="frNick" maxlength="14" placeholder="НИК ДРУГА" autocomplete="off"><button id="frAddBtn" class="hot">➕ ДОБАВИТЬ</button></div>
+  <div id="frReq"></div>
+  <div id="frList"></div>
+  <button id="frBack">НАЗАД</button>
+</div>
+
+<div class="screen hidden dim" id="s-fprof">
+  <h2 id="fpNick"></h2>
+  <div id="fpBody"></div>
+  <button id="fpBack" class="hot">НАЗАД</button>
+</div>
+
+<div id="toasts"></div>
 
 <div class="screen hidden" id="s-career">
   <h2>ПУТЬ К ПОЯСУ</h2>
@@ -231,11 +255,11 @@
 
 <script src="https://unpkg.com/mqtt@5.10.1/dist/mqtt.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"></script>
-<script src="js/audio.js?v=1793729923"></script>
-<script src="js/fighters.js?v=1793729923"></script>
-<script src="js/stages.js?v=1793729923"></script>
-<script src="js/sprite.js?v=1793729923"></script>
-<script src="js/game.js?v=1793729923"></script>
-<script src="js/ui.js?v=1793729923"></script>
+<script src="js/audio.js?v=1793808356"></script>
+<script src="js/fighters.js?v=1793808356"></script>
+<script src="js/stages.js?v=1793808356"></script>
+<script src="js/sprite.js?v=1793808356"></script>
+<script src="js/game.js?v=1793808356"></script>
+<script src="js/ui.js?v=1793808356"></script>
 </body>
 </html>

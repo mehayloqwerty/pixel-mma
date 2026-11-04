@@ -312,6 +312,100 @@ function startFight(o) {
   Sound.unlockVoice();
 }
 
+// ---------- Друзья по нику: заявки, кто в сети, вызов на бой, профиль друга
+if (!Profile.id) Profile.id = (crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2) + Date.now().toString(36));
+Profile.friends = Profile.friends || []; Profile.requests = Profile.requests || [];
+saveProfile();
+const Lobby = { ws: null, online: {}, tries: 0 };
+const lobbySend = o => { if (Lobby.ws && Lobby.ws.readyState === 1) { Lobby.ws.send(JSON.stringify(o)); return true; } return false; };
+function lobbyConnect() {
+  if (!Profile.nick || navigator.onLine === false) return;
+  try { Lobby.ws && Lobby.ws.close(); } catch (e) {}
+  let ws;
+  try { ws = new WebSocket('wss://' + FIGHT_SERVER + '/?lobby=1&id=' + encodeURIComponent(Profile.id) + '&nick=' + encodeURIComponent(Profile.nick)); } catch (e) { return; }
+  Lobby.ws = ws;
+  ws.onopen = () => { Lobby.tries = 0; lobbySend({ t: 'watch', ids: Profile.friends.map(f => f.id) }); refreshFriends(); };
+  ws.onmessage = ev => { let m; try { m = JSON.parse(ev.data); } catch (e) { return; } onLobby(m); };
+  ws.onclose = () => {
+    if (Lobby.ws !== ws) return;
+    Lobby.ws = null; Lobby.online = {}; refreshFriends();
+    setTimeout(lobbyConnect, Math.min(30000, 3000 * ++Lobby.tries));
+  };
+  ws.onerror = () => {};
+}
+function toast(text, btns = [], ms = 6000) {
+  const t = document.createElement('div'); t.className = 'toast';
+  const p = document.createElement('p'); p.textContent = text; t.appendChild(p);
+  for (const [label, fn] of btns) {
+    const b = document.createElement('button'); b.textContent = label;
+    b.onclick = () => { t.remove(); fn(); }; t.appendChild(b);
+  }
+  $('toasts').appendChild(t); Sound.sfx('select');
+  setTimeout(() => t.remove(), ms);
+}
+function addFriend(f) {
+  if (!Profile.friends.some(x => x.id === f.id)) Profile.friends.push({ id: f.id, nick: f.nick });
+  Profile.requests = Profile.requests.filter(x => x.id !== f.id);
+  saveProfile(); lobbySend({ t: 'watch', ids: [f.id] }); refreshFriends();
+}
+function onLobby(m) {
+  const fr = m.from;
+  if (m.t === 'presence') {
+    Lobby.online[m.id] = m.on;
+    const f = Profile.friends.find(x => x.id === m.id);
+    if (f && m.nick && f.nick !== m.nick) { f.nick = m.nick; saveProfile(); }
+  } else if (m.t === 'freq') {
+    if (Profile.friends.some(x => x.id === fr.id)) { lobbySend({ t: 'facc', to: fr.id }); return; }
+    if (!Profile.requests.some(x => x.id === fr.id)) Profile.requests.push(fr);
+    saveProfile();
+    toast('📨 ' + fr.nick + ' хочет в друзья', [['ПРИНЯТЬ', () => acceptReq(fr)], ['НЕТ', () => declineReq(fr)]], 12000);
+  } else if (m.t === 'freqOk') {
+    toast(m.online ? '✉ Заявка отправлена: ' + m.nick : '✉ Заявка для ' + m.nick + ' придёт, когда он зайдёт в игру');
+  } else if (m.t === 'facc') { addFriend(fr); toast('🤝 ' + fr.nick + ' теперь твой друг'); }
+  else if (m.t === 'fdec') toast(fr.nick + ' отклонил заявку');
+  else if (m.t === 'unfriend') { Profile.friends = Profile.friends.filter(x => x.id !== fr.id); saveProfile(); }
+  else if (m.t === 'prof?') lobbySend({ t: 'prof', to: fr.id, data: { nick: Profile.nick, w: Profile.w, l: Profile.l, d: Profile.d, ko: Profile.ko, belts: Profile.belts || 0, fav: Flow.p1 } });
+  else if (m.t === 'prof') showFriendProfile(m.data);
+  else if (m.t === 'inv') toast('⚔ ' + fr.nick + ' вызывает тебя на бой!', [['В БОЙ', () => acceptInvite(m)], ['НЕТ', () => lobbySend({ t: 'invNo', to: fr.id })]], 20000);
+  else if (m.t === 'invNo') toast(fr.nick + ' отказался от боя');
+  else if (m.t === 'nickTaken') toast('⚠ Ник ' + m.nick + ' уже занят игроком в сети — смени ник в профиле', [], 9000);
+  else if (m.t === 'err') toast('⚠ ' + m.text);
+  refreshFriends();
+}
+function acceptReq(f) { addFriend(f); lobbySend({ t: 'facc', to: f.id }); }
+function declineReq(f) { Profile.requests = Profile.requests.filter(x => x.id !== f.id); saveProfile(); lobbySend({ t: 'fdec', to: f.id }); refreshFriends(); }
+function inviteFriend(f) {
+  openSelect('БОЕЦ ДЛЯ БОЯ С ' + f.nick, Flow.p1, id => {
+    Flow.p1 = id; saveFlow(); hostRoom();
+    lobbySend({ t: 'inv', to: f.id, room: Net.roomId, b: 0 });
+    $('hostStatus').textContent = 'ВЫЗОВ ОТПРАВЛЕН ' + f.nick + '... ЖДЁМ';
+  }, () => show('s-friends'));
+}
+function acceptInvite(m) {
+  Flow.room = m.room; Flow.broker = m.b || 0; wakeServer();
+  openSelect('БОЕЦ ПРОТИВ ' + m.from.nick, Flow.p1, id => { Flow.p1 = id; saveFlow(); joinRoom(); }, () => show('s-menu'));
+}
+function showFriendProfile(d) {
+  $('fpNick').textContent = '👤 ' + d.nick;
+  const fav = FIGHTER[d.fav];
+  $('fpBody').innerHTML = `<div class="fpcard"><div><b>${d.w}</b><small>ПОБЕД</small></div><div><b>${d.l}</b><small>ПОРАЖЕНИЙ</small></div>`
+    + `<div><b>${d.d}</b><small>НИЧЬИХ</small></div><div><b>${d.ko}</b><small>НОКАУТОВ</small></div><div><b>${d.belts}🏆</b><small>ПОЯСОВ</small></div></div>`
+    + (fav ? `<p>ЛЮБИМЫЙ БОЕЦ: ${fav.name} ${fav.flag}</p>` : '');
+  show('s-fprof');
+}
+function refreshFriends() {
+  const on = Profile.friends.filter(f => Lobby.online[f.id]).length, rq = Profile.requests.length;
+  if ($('mFriends')) $('mFriends').innerHTML = '👥 ДРУЗЬЯ' + (on ? ' <small class="on">● ' + on + '</small>' : '') + (rq ? ' <small class="rq">📨' + rq + '</small>' : '');
+  if (!$('frList')) return;
+  $('frStatus').textContent = Lobby.ws && Lobby.ws.readyState === 1 ? 'ТЫ В СЕТИ КАК ' + Profile.nick : navigator.onLine === false ? 'НЕТ ИНТЕРНЕТА' : 'ПОДКЛЮЧАЮСЬ К СЕРВЕРУ... (если он спал — до минуты)';
+  $('frReq').innerHTML = Profile.requests.map(r => `<div class="fr req"><i>📨</i><b>${r.nick}</b><span>хочет в друзья</span><button data-a="acc" data-id="${r.id}">✓</button><button data-a="dec" data-id="${r.id}">✕</button></div>`).join('');
+  $('frList').innerHTML = Profile.friends.length ? Profile.friends.map(f => {
+    const o = !!Lobby.online[f.id];
+    return `<div class="fr"><i class="dot ${o ? 'on' : ''}"></i><b>${f.nick}</b><span>${o ? 'В СЕТИ' : 'НЕ В СЕТИ'}</span>`
+      + `<button data-a="prof" data-id="${f.id}" ${o ? '' : 'disabled'}>👤</button><button data-a="inv" data-id="${f.id}" class="hot" ${o ? '' : 'disabled'}>⚔</button><button data-a="del" data-id="${f.id}">✕</button></div>`;
+  }).join('') : '<p class="tiny">Пока нет друзей. Впиши ник друга и нажми «Добавить».</p>';
+}
+
 // ---------- Путь к поясу: 5 соперников по нарастающей, проиграл — начинай заново
 const CAREER_DIFF = [1, 2, 3, 4, 5];
 let Career = null;
@@ -382,6 +476,7 @@ function hostRoom() {
   $('link').value = '';
   $('hostStatus').textContent = 'СОЗДАЮ КОМНАТУ...';
   const room = Math.random().toString(36).slice(2, 8);
+  Net.roomId = room;
   Net.conn = Net.peer = relay(room, 'host', onNetData, bi => {
     $('link').value = location.origin + location.pathname + '?room=' + room + '&b=' + bi;
     if (!G || G.mode !== 'host') $('hostStatus').textContent = 'ЖДЁМ ДРУГА...';
@@ -602,8 +697,30 @@ function wire() {
     const n = $('nickIn').value.trim().replace(/\s+/g, ' ').slice(0, 14);
     if (!n) { $('nickIn').focus(); return; }
     Profile.nick = n.toUpperCase(); saveProfile(); refreshProfile(); Sound.sfx('confirm');
+    lobbyConnect();
     if (Flow.room) show('s-join'); else show('s-menu');
   };
+  $('mFriends').onclick = () => { Sound.sfx('confirm'); if (!Lobby.ws) lobbyConnect(); refreshFriends(); show('s-friends'); };
+  $('frBack').onclick = () => show('s-menu');
+  $('fpBack').onclick = () => show('s-friends');
+  $('frAddBtn').onclick = () => {
+    const n = $('frNick').value.trim().toUpperCase().slice(0, 14);
+    if (!n) return;
+    if (n === Profile.nick) { toast('Это твой ник 🙂'); return; }
+    if (!lobbySend({ t: 'freq', nick: n })) { toast('⚠ Нет связи с сервером, попробуй через минуту'); lobbyConnect(); return; }
+    $('frNick').value = '';
+  };
+  const frClick = e => {
+    const b = e.target.closest('button'); if (!b) return;
+    const id = b.dataset.id, f = Profile.friends.find(x => x.id === id) || Profile.requests.find(x => x.id === id);
+    if (!f) return;
+    if (b.dataset.a === 'acc') acceptReq(f);
+    if (b.dataset.a === 'dec') declineReq(f);
+    if (b.dataset.a === 'prof') { lobbySend({ t: 'prof?', to: id }); toast('Запрашиваю профиль ' + f.nick + '...', [], 2500); }
+    if (b.dataset.a === 'inv') inviteFriend(f);
+    if (b.dataset.a === 'del') { Profile.friends = Profile.friends.filter(x => x.id !== id); saveProfile(); lobbySend({ t: 'unfriend', to: id }); refreshFriends(); }
+  };
+  $('frList').onclick = frClick; $('frReq').onclick = frClick;
   $('mProfile').onclick = () => { $('nickIn').value = Profile.nick; refreshProfile(); show('s-nick'); };
   refreshProfile();
   $('mBot').onclick = () => {
@@ -614,6 +731,7 @@ function wire() {
     }, () => show('s-menu'));
   };
   $('mOnline').onclick = () => {
+    if (offlineMsg()) return;
     wakeServer();
     Sound.sfx('confirm');
     openSelect('ВЫБЕРИ СВОЕГО БОЙЦА', Flow.p1, id => { Flow.p1 = id; saveFlow(); hostRoom(); }, () => show('s-menu'));
@@ -687,6 +805,11 @@ function wire() {
 
 $('pixCredits') && ($('pixCredits').textContent = 'Pixabay (Pixabay Content License): ' + Sound.credits().join(' · '));
 
+// ---------- Офлайн: игра кэшируется и запускается без интернета
+if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => {});
+addEventListener('online', () => { if (!Lobby.ws) lobbyConnect(); });
+const offlineMsg = () => { if (navigator.onLine === false) { $('waitTxt').textContent = 'НЕТ ИНТЕРНЕТА — ОНЛАЙН НЕДОСТУПЕН. ИГРАЙ С БОТАМИ!'; show('s-wait'); return true; } return false; };
+
 // ---------- Запуск
 const qs = new URLSearchParams(location.search);
 Flow.room = qs.get('room');
@@ -700,5 +823,6 @@ addEventListener('orientationchange', () => setTimeout(layout, 200));
 if (Flow.room) $('titleHint').textContent = 'ДРУГ ЗОВЁТ ТЕБЯ НА БОЙ!';
 startDemo();
 show('s-title');
+lobbyConnect(); refreshFriends();
 requestAnimationFrame(loop);
 requestAnimationFrame(drawPreview);

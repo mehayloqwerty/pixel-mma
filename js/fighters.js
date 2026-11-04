@@ -160,6 +160,7 @@ const MORE = [
   ['fury', 'ФЬЮРИ', 'Цыганский король', '🇬🇧', 'Гигант, который двигается как средневес.', 'sp_flurry', 'КОРОЛЕВСКАЯ СЕРИЯ', [9, 7, 2, 10], 1.22, 1.3, '#f0c8a8', '#5a3e2a', 'bald', 'full', '#151515', '#ffd200', 1, 'pimblett', 'из Манчестера, Англия', 'Тайсон «Цыганский король» Фьюри'],
   ['canelo', 'КАНЕЛО', 'Саул', '🇲🇽', 'Корпус, апперкоты и железный подбородок.', 'sp_peek', 'АПЕРКОТ КАНЕЛО', [9, 8, 1, 6], 0.98, 1.15, '#e3ad86', '#b4542a', 'short', 'stubble', '#1d8a3c', '#c8202a', 1, 'tyson', 'из Гвадалахары, Мексика', 'Сауль «Канело» Альварес'],
   ['joshua', 'ДЖОШУА', 'AJ', '🇬🇧', 'Атлет-тяжеловес с правым-кувалдой.', 'sp_peek', 'АПЕРКОТ AJ', [9, 7, 2, 9], 1.16, 1.3, '#5a3520', '#000', 'short', 'stubble', '#f2f2f2', '#d2a536', 1, 'mcgregor', 'из Уотфорда, Англия', 'Энтони «AJ» Джошуа'],
+  ['kai', 'КАЙ', 'Подвал', '🏴', 'Король подпольных боёв. Голые кулаки в бинтах, локти, колени — без правил.', 'sp_kai', 'ПОДВАЛЬНАЯ СЕРИЯ', [9, 9, 7, 8], 1.03, 1.0, '#e8b896', '#6b4a2a', 'slick', 'stubble', '#141414', '#a01818', 0, 'poirier', 'из подпольного клуба', 'Кай «Подвал»'],
   ['ggg', 'ГОЛОВКИН', 'GGG', '🇰🇿', 'Давление и нокаутирующая сила.', 'sp_flurry', 'БОЛЬШОЙ ДРАМА-ШОУ', [10, 7, 1, 7], 1.0, 1.1, '#e8b896', '#141010', 'short', 'none', '#1f9fd0', '#f7d21c', 1, 'tsarukyan', 'из Караганды, Казахстан', 'Геннадий «GGG» Головкин'],
 ];
 for (const m of MORE) {
@@ -176,6 +177,7 @@ for (const m of MORE) {
             gloves: boxer ? (shorts2 === '#151515' ? '#b81d1d' : shorts) : '#161616', boxing: !!boxer,
             shoes: boxer ? '#111' : undefined, tattoo },
   });
+  if (id === 'kai') ROSTER[ROSTER.length - 1].look.gloves = '#e8e2d4'; // бинты на голых кулаках
   FIGHTER[id] = ROSTER[ROSTER.length - 1];
   INTRO[id] = [from, full];
 }
@@ -185,7 +187,7 @@ const DIVISIONS = [
   ['hw', 'ТЯЖЁЛЫЙ', ['jones', 'ngannou', 'fedor', 'miocic', 'aspinall', 'velasquez', 'cormier', 'gane', 'jds', 'lesnar']],
   ['lhw', 'ПОЛУТЯЖЁЛЫЙ', ['pereira', 'prochazka', 'liddell', 'shogun', 'wanderlei']],
   ['mw', 'СРЕДНИЙ', ['asilva', 'adesanya', 'chimaev', 'dricus']],
-  ['ww', 'ПОЛУСРЕДНИЙ', ['gsp', 'usman', 'edwards', 'belal', 'masvidal', 'ndiaz']],
+  ['ww', 'ПОЛУСРЕДНИЙ', ['kai', 'gsp', 'usman', 'edwards', 'belal', 'masvidal', 'ndiaz']],
   ['lw', 'ЛЁГКИЙ', ['khabib', 'makhachev', 'oliveira', 'tsarukyan', 'poirier', 'gaethje', 'mcgregor', 'penn', 'pimblett']],
   ['fw', 'ПОЛУЛЁГКИЙ И ЛЕГЧАЙШИЙ', ['volkanovski', 'topuria', 'holloway', 'merab', 'omalley']],
   ['box', 'БОКС', ['ali', 'tyson', 'mayweather', 'usyk', 'pacquiao', 'canelo', 'lomachenko', 'ggg', 'fury', 'wklitschko', 'joshua']],
@@ -466,6 +468,7 @@ const SPECIALS = {
   wklitschko: comboSpecial(['jab', 'jab', 'cross']), fury: comboSpecial(['jab', 'upper', 'cross', 'hookP']),
   canelo: comboSpecial(['bodyHook', 'upper', 'hookP']), joshua: comboSpecial(['jab', 'cross', 'upper']),
   ggg: comboSpecial(['jab', 'hookP', 'bodyHook', 'hookP']),
+  kai: comboSpecial(['jab', 'elbowS', 'kneeS', 'upper', 'highKick'], 1.3),
 };
 for (const [id, mv] of Object.entries(SPECIALS)) { MOVES['sp_' + id] = mv; if (FIGHTER[id]) FIGHTER[id].special = 'sp_' + id; }
 
@@ -491,7 +494,7 @@ function keyPose(keys, t) {
 const BODY = {
   lean: ['adesanya', 'omalley', 'asilva', 'ndiaz', 'lomachenko', 'oliveira', 'mcgregor', 'jones', 'usyk', 'gane', 'pereira', 'prochazka',
          'holloway', 'edwards', 'pacquiao', 'mayweather', 'ali'],
-  muscle: ['makhachev', 'tyson', 'lesnar', 'ngannou', 'joshua', 'chimaev', 'tsarukyan', 'topuria', 'gsp', 'usman', 'dricus', 'gaethje', 'masvidal',
+  muscle: ['kai', 'makhachev', 'tyson', 'lesnar', 'ngannou', 'joshua', 'chimaev', 'tsarukyan', 'topuria', 'gsp', 'usman', 'dricus', 'gaethje', 'masvidal',
            'wklitschko', 'aspinall'],
   stocky: ['khabib', 'poirier', 'canelo', 'ggg', 'volkanovski', 'merab', 'belal', 'miocic', 'jds', 'shogun', 'wanderlei',
            'velasquez', 'pimblett'],
@@ -542,6 +545,7 @@ function drawHead(ctx, cx, cy, R, up, L, o, C) {
         if ((hs === 'short' || hs === 'flattop' || hs === 'braids' || hs === 'mullet') &&
             (v >= R * 0.35 || (u <= -R * 0.4 && v >= -R * 0.15))) c = (u + v) % 3 === 0 ? shade(hairC, 1.25) : hairC;
         if (hs === 'mullet' && u <= -R * 0.4 && v >= -R * 0.7) c = hairC;
+        if (hs === 'slick' && (v >= R * 0.3 || (u <= -R * 0.35 && v >= -R * 0.3))) c = (u - v) % 3 === 0 ? shade(hairC, 1.35) : hairC;
         if (hs === 'chub' && v >= R - 1 && u >= -2 && u <= 1) c = hairC;
         if (L.beard === 'full' && ((v <= -2 && u >= -2) || (v <= 0 && u >= -2 && u <= 0))) c = beardC;
         if (L.beard === 'goatee' && v <= -R * 0.45 && u >= 0) c = beardC;
@@ -565,6 +569,8 @@ function drawHead(ctx, cx, cy, R, up, L, o, C) {
             (u >= -R - 1 && u <= -R + 1 && v >= -2 && v <= R - 1))) c = hairC;
         if (L.hairStyle === 'braids' && u >= -R - 1 && u <= -R && v >= -4 && v <= 1 && !(v & 1)) c = hairC;
         if (L.hairStyle === 'mullet' && ((u >= -R - 1 && u <= -R + 1 && v >= -R - 1 && v <= 1) || (v === R + 1 && u >= -2 && u <= 2))) c = hairC;
+        if (L.hairStyle === 'slick' && ((v >= R - 1 && v <= R + 1 && u >= -R + 1 && u <= R - 2) || (u >= -R - 1 && u <= -R && v >= 0 && v <= R - 1)))
+          c = (u + v) % 2 ? shade(hairC, 1.3) : hairC; // объём и зачёс назад
         if (u === R + 1 && (v === 0 || (R >= 8 && v === -1))) c = L.skin; // нос
       }
       if (o.hat && L.hat === 'papakha' && v >= Math.round(R * 0.3) && v <= R + 5 && Math.abs(u) <= R + 1) {
@@ -817,6 +823,7 @@ function drawInjuries(ctx, dmg, g) {
   if (h >= 5) { px(H(R * 0.45, R * 0.05), BRUISE[0], 2, 1); px(H(R * 0.55, -R * 0.15), BRUISE[1]); px(H(R * 0.75, R * 0.5), BRUISE[2]); }
   if (h >= 7) { px(H(R * 0.55, R * 0.55), BLOOD[2], 2, 1); drip(H(R * 0.65, R * 0.4), 3 + Math.min(4, h - 7)); px(H(R * 0.9, -R * 0.3), BLOOD[1]); }
   if (h >= 15) { px(H(R * 0.4, R * 0.1), '#3a1f48', 3, 2); drip(H(R * 0.3, -R * 0.2), 5); drip(H(R * 0.85, 0), 4); }
+  if (h >= 10) { px(H(R + 1, -1), BLOOD[0], 1, 1); drip(H(R * 0.95, -R * 0.35), 3 + Math.min(4, h - 10)); }
   // корпус
   const b = dmg.body || 0;
   if (b >= 5) { px(at(tLen * 0.45, pw * 0.35), BRUISE[0], 2, 2); px(at(tLen * 0.62, -pw * 0.1), BRUISE[1], 2, 1); px(at(tLen * 0.3, pw * 0.7), BRUISE[2]); }
