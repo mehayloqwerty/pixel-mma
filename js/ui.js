@@ -32,17 +32,20 @@ const Input = (() => {
     for (const ch of DIR) touch[ch] = 1;
     stick.dataset.dir = DIR;
   };
+  const rotated = () => document.body.classList.contains('forceLand');
   const stickMove = e => {
     if (e.pointerId !== sid) return;
     const b = stick.getBoundingClientRect();
-    setStick(e.clientX - b.left - b.width / 2, e.clientY - b.top - b.height / 2);
+    const dx = e.clientX - b.left - b.width / 2, dy = e.clientY - b.top - b.height / 2;
+    if (rotated()) setStick(dy, -dx); else setStick(dx, dy);
   };
   // плавающий джойстик: центр там, где коснулся пальцем в левой половине
   const zone = $('stickZone');
   zone.addEventListener('pointerdown', e => {
     sid = e.pointerId; zone.setPointerCapture(sid);
     const zr = zone.getBoundingClientRect(), half = stick.offsetWidth / 2;
-    stick.style.left = (e.clientX - zr.left - half) + 'px'; stick.style.top = (e.clientY - zr.top - half) + 'px'; stick.style.bottom = 'auto';
+    const lx = rotated() ? e.clientY - zr.top : e.clientX - zr.left, ly = rotated() ? zr.right - e.clientX : e.clientY - zr.top;
+    stick.style.left = (lx - half) + 'px'; stick.style.top = (ly - half) + 'px'; stick.style.bottom = 'auto';
     stick.classList.add('on'); stickMove(e); e.preventDefault();
   });
   zone.addEventListener('pointermove', stickMove);
@@ -665,8 +668,11 @@ const UI = {
 
 // ---------- Размер под экран
 function layout() {
-  const vw = innerWidth, vh = innerHeight, st = $('stage');
-  const portrait = vh > vw;
+  const force = isTouch() && innerHeight > innerWidth;
+  document.body.classList.toggle('forceLand', force);
+  const vw = force ? innerHeight : innerWidth, vh = force ? innerWidth : innerHeight, st = $('stage');
+  const portrait = !force && vh > vw;
+  document.body.classList.toggle('compact', vh <= 520);
   const s = portrait ? vw / 320 : Math.min(vw / 320, vh / 180);
   const w = 320 * s, h = 180 * s;
   st.style.width = w + 'px'; st.style.height = h + 'px';
