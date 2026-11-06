@@ -1,7 +1,7 @@
 :root { --u: 2px; --red: #c0262d; --yel: #ffd23a; --blue: #3ab0ff; }
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 html, body {
-  margin: 0; height: 100%; background: #06060d; color: #fff; overflow: hidden;
+  margin: 0; height: 100%; background: #06060d; color: #fff; overflow: hidden; overscroll-behavior: none;
   font-family: 'Press Start 2P', monospace; user-select: none; -webkit-user-select: none;
   touch-action: manipulation; -webkit-touch-callout: none;
 }
@@ -63,8 +63,12 @@ body.fighting, #touch, #touch *, #stage { touch-action: none; }
 /* ---------- Экраны */
 .screen {
   position: fixed; inset: 0; z-index: 10; display: flex; flex-direction: column; align-items: center; justify-content: center;
-  padding: max(16px, env(safe-area-inset-top)) 16px 16px; background: radial-gradient(#06060daa, #06060df0); overflow-y: auto; text-align: center;
+  padding: max(16px, env(safe-area-inset-top)) 16px 16px; background: radial-gradient(#06060daa, #06060df0); overflow: hidden; text-align: center;
+  touch-action: none; overscroll-behavior: none;
 }
+/* прокручивается только то, что правда может не влезть: справка и списки */
+.scrollY { overflow-y: auto; touch-action: pan-y; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
+input { touch-action: manipulation; }
 .screen.dim { background: #06060dd0; }
 .screen > * { flex-shrink: 0; }
 #s-select, #s-setup, #s-help { justify-content: flex-start; }
@@ -93,7 +97,7 @@ button.hot { background: #f2b51b; color: #1a1000; box-shadow: inset -4px -4px 0 
 .row { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; }
 
 /* ---------- Выбор бойца */
-#divs { display: flex; gap: 6px; overflow-x: auto; max-width: min(900px, 100%); padding: 4px 4px 10px; scrollbar-width: none; }
+#divs { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; max-width: min(900px, 100%); padding: 4px 4px 10px; }
 #divs::-webkit-scrollbar { display: none; }
 .tab { flex-shrink: 0; margin: 0; padding: 9px 12px; font-size: 8px; background: #1d1934; box-shadow: inset -3px -3px 0 #0e0b1e, 0 0 0 3px #000; color: #bbb; }
 .tab small { color: var(--yel); font-size: 7px; margin-left: 4px; }
@@ -302,3 +306,37 @@ body:not(.portrait) .tb.j { width: 50px; height: 50px; }
 .screen.enter .tiles > .tile:nth-child(2) { animation-delay: .06s; } .screen.enter .tiles > .tile:nth-child(3) { animation-delay: .12s; }
 .screen.enter .tiles > .tile:nth-child(4) { animation-delay: .18s; }
 @media (max-height: 520px) { .tile { padding: 10px 10px 9px; } .tile i { font-size: 18px; } .menuTop .logo.small { font-size: 26px; margin: 4px 0; } }
+
+/* ---------- Только горизонтально */
+#rotate { display: none; position: fixed; inset: 0; z-index: 100; background: #06060d; color: #fff; flex-direction: column; align-items: center; justify-content: center; gap: 18px; text-align: center; padding: 24px; touch-action: none; }
+#rotate .ph { width: 54px; height: 90px; border: 4px solid var(--yel); border-radius: 10px; animation: turn 1.6s steps(8) infinite; }
+#rotate p { font-size: 12px; line-height: 1.8; color: var(--yel); max-width: 280px; }
+@keyframes turn { 0%, 30% { transform: rotate(0); } 60%, 100% { transform: rotate(-90deg); } }
+body.portrait.touch #rotate { display: flex; }
+
+/* ---------- Экраны целиком в один экран телефона (горизонтально) */
+@media (max-height: 520px) {
+  .screen { padding: max(6px, env(safe-area-inset-top)) max(10px, env(safe-area-inset-right)) 6px max(10px, env(safe-area-inset-left)); }
+  h2 { font-size: 11px; margin: 2px 0 4px; }
+  #s-select { display: grid; grid-template-rows: auto auto minmax(0, 1fr) auto; height: 100%; justify-items: center; }
+  #divs { padding: 0 0 6px; gap: 4px; }
+  .tab { padding: 6px 7px; font-size: 6px; }
+  .tab small { font-size: 6px; }
+  .selwrap { flex-wrap: nowrap; align-items: stretch; gap: 10px; min-height: 0; height: 100%; }
+  #info { flex: 0 0 210px; width: 210px; padding: 6px; display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
+  #prev { width: auto; height: 34%; max-height: 120px; margin: 0 auto; flex: 0 1 auto; min-height: 60px; }
+  #iOvr { font-size: 10px; padding: 3px 4px; }
+  .arr { padding: 5px 6px; font-size: 8px; }
+  #iName { font-size: 10px; margin-top: 4px; } #iNick { font-size: 7px; margin: 3px 0 2px; } #iDiv { font-size: 6px; margin-bottom: 4px; }
+  .st { margin: 2px 0; font-size: 6px; } .st i { width: 7px; height: 5px; }
+  #iStyle { display: none; } #iSp, #iSong { font-size: 6px; margin: 3px 0 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #grid { grid-template-columns: repeat(6, minmax(0, 1fr)); grid-auto-rows: min-content; gap: 6px; max-width: none; align-content: start; overflow: hidden; }
+  .card { padding: 2px 2px 4px; }
+  .card canvas { max-width: 64px; }
+  .card span { font-size: 5px; margin-top: 2px; }
+  .card em { font-size: 7px; top: 3px; left: 3px; } .card i { font-size: 9px; top: 2px; right: 3px; }
+  #s-select > .row { margin-top: 4px; } #s-select .row button { padding: 8px 12px; margin: 0 4px; font-size: 9px; }
+  .help { max-height: calc(100vh - 110px); }
+  #frList { max-height: calc(100vh - 230px); }
+  #ladder .rung { padding: 6px 8px; }
+}

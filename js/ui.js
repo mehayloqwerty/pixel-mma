@@ -62,7 +62,9 @@ const Input = (() => {
     if (document.body.classList.contains('fighting') && now - lastTouch < 450) e.preventDefault();
     lastTouch = now;
   }, { passive: false });
-  document.addEventListener('touchmove', e => { if (e.touches.length > 1 || document.body.classList.contains('fighting')) e.preventDefault(); }, { passive: false });
+  document.addEventListener('touchmove', e => {
+    if (e.touches.length > 1 || !(e.target.closest && e.target.closest('.scrollY'))) e.preventDefault();
+  }, { passive: false });
   $('touch').addEventListener('touchstart', e => e.preventDefault(), { passive: false });
 
   document.querySelectorAll('.tb').forEach(b => {
@@ -672,6 +674,9 @@ function layout() {
   st.style.top = (portrait ? Math.min((vh - h) / 2, vh * 0.1) : (vh - h) / 2) + 'px';
   document.documentElement.style.setProperty('--u', s + 'px');
   document.body.classList.toggle('portrait', portrait);
+  document.body.classList.toggle('touch', isTouch());
+  // на телефоне держим горизонтальную ориентацию, если система позволяет
+  try { if (screen.orientation && screen.orientation.lock && (document.fullscreenElement || standalone)) screen.orientation.lock('landscape').catch(() => {}); } catch (e) {}
 }
 
 // ---------- Кнопки

@@ -14,7 +14,7 @@
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><text y='14' font-size='14'>🥊</text></svg>">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=1793809170">
+<link rel="stylesheet" href="style.css?v=1793997756">
 </head>
 <body>
 <div id="stage">
@@ -45,6 +45,7 @@
 <div id="wipe"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
 <div id="flash"></div>
 
+<div id="rotate"><div class="ph"></div><p>ПОВЕРНИ ТЕЛЕФОН ГОРИЗОНТАЛЬНО</p><p style="color:#888;font-size:8px">Игра работает только в горизонтальном режиме</p></div>
 <div id="rotHint">🔄 ПОВЕРНИ ТЕЛЕФОН —<br>БУДЕТ НА ВЕСЬ ЭКРАН</div>
 
 <div id="touch" class="hidden">
@@ -168,7 +169,7 @@
   <p id="frStatus" class="tiny"></p>
   <div class="frAdd"><input id="frNick" maxlength="14" placeholder="НИК ДРУГА" autocomplete="off"><button id="frAddBtn" class="hot">➕ ДОБАВИТЬ</button></div>
   <div id="frReq"></div>
-  <div id="frList"></div>
+  <div id="frList" class="scrollY"></div>
   <button id="frBack">НАЗАД</button>
 </div>
 
@@ -204,7 +205,7 @@
 
 <div class="screen hidden dim" id="s-ios">
   <h2>ВО ВЕСЬ ЭКРАН НА IPHONE</h2>
-  <div class="help">
+  <div class="help scrollY">
     <p>iPhone не даёт сайтам прятать вкладки. Но можно поставить игру как приложение:</p>
     <p><b>1.</b> Нажми в Safari кнопку «Поделиться» (квадрат со стрелкой вверх) — она вверху справа или внизу.</p>
     <p><b>2.</b> Пролистай список вниз и нажми «На экран «Домой»» → «Добавить». Нет пункта — нажми «Ещё» (⋯) или «Изменить действия» и включи его.</p>
@@ -215,7 +216,7 @@
 
 <div class="screen hidden" id="s-help">
   <h2>КАК ИГРАТЬ</h2>
-  <div class="help">
+  <div class="help scrollY">
     <p><b>КОМПЬЮТЕР</b></p>
     <p>← → — ходить · ↓ — присесть · I — прыжок</p>
     <p>J — рука · K — нога · L — спешл · ПРОБЕЛ — блок</p>
@@ -255,11 +256,11 @@
 
 <script src="https://unpkg.com/mqtt@5.10.1/dist/mqtt.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"></script>
-<script src="js/audio.js?v=1793809170"></script>
-<script src="js/fighters.js?v=1793809170"></script>
-<script src="js/stages.js?v=1793809170"></script>
-<script src="js/sprite.js?v=1793809170"></script>
-<script src="js/game.js?v=1793809170"></script>
-<script src="js/ui.js?v=1793809170"></script>
+<script src="js/audio.js?v=1793997756"></script>
+<script src="js/fighters.js?v=1793997756"></script>
+<script src="js/stages.js?v=1793997756"></script>
+<script src="js/sprite.js?v=1793997756"></script>
+<script src="js/game.js?v=1793997756"></script>
+<script src="js/ui.js?v=1793997756"></script>
 </body>
 </html>
